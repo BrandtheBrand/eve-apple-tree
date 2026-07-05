@@ -106,6 +106,16 @@ The starter vault above already has the plugin inside it. To add the plugin to a
 3. **Settings → Community plugins**, enable **Eve Apple Tree Thinking System**.
 4. Open the tree from the **sprout** ribbon icon or the command palette → *"Open the tree of light."*
 
+### Add Eve's tree team to a vault you already have
+
+Installed the plugin from Community Plugins (or by hand) and want the AI half in your own vault, without opening a new one?
+
+1. Download `eve-tree-team-0.4.0.zip` from the [latest release](https://github.com/BrandtheBrand/eve-apple-tree/releases/latest).
+2. Copy everything inside `eve-tree-team/` into your vault's root folder, including the hidden `.claude/` folder. Already have a `CLAUDE.md`? Merge by hand instead of overwriting.
+3. Open the vault folder in Claude Code and say *"gardener, let's think."*
+
+The zip also carries a `templates/` folder (root, trunk, leaf, flower, apple, field, bridge) for growing the tree fully by hand.
+
 ### From source
 ```bash
 cd plugin
