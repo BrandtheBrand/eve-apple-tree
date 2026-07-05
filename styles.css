@@ -1,0 +1,160 @@
+/* Eve's Apple Tree Thinking System — plugin view styles (scoped to .eve-tree-root) */
+.eve-tree-root{
+  --eve-bg:#f7f4ec; --eve-card:rgba(255,253,247,.86); --eve-line:rgba(34,48,58,.14);
+  --eve-fg:#22303a; --eve-muted:#5d6b76; --eve-faint:#8a96a0; --eve-accent:#7a93a6;
+  position:absolute; inset:0; overflow:hidden; background:var(--eve-bg);
+  font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Helvetica,Arial,sans-serif;
+  color:var(--eve-fg);
+}
+.eve-tree-root .eve-canvas{position:absolute;inset:0}
+.eve-tree-root .eve-labels{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:5;contain:layout style size}
+
+.eve-tree-root .eve-card{position:absolute;background:var(--eve-card);backdrop-filter:blur(10px);
+  border:1px solid var(--eve-line);border-radius:14px;padding:14px 16px;box-shadow:0 8px 30px rgba(34,48,58,.07);z-index:6}
+.eve-tree-root .eve-ui{top:14px;left:14px;width:266px;max-height:calc(100% - 28px);overflow:auto}
+/* redesigned panel — brand, slogan, pitch, how-to steps, fluent button row */
+.eve-tree-root .eve-hd{margin:0 0 9px}
+.eve-tree-root .eve-brand{font-size:16px;font-weight:750;letter-spacing:.2px;line-height:1.15}
+.eve-tree-root .eve-slogan{font:italic 600 12.5px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:var(--eve-accent);margin-top:2px}
+.eve-tree-root .eve-pitch{font-size:11.5px;line-height:1.5;color:var(--eve-muted);margin:0 0 11px}
+.eve-tree-root .eve-pitch b{color:var(--eve-fg);font-weight:650}
+.eve-tree-root .eve-guide .eve-steps{list-style:none;margin:3px 0 0;padding:0;display:flex;flex-direction:column;gap:7px}
+.eve-tree-root .eve-guide .eve-steps li{position:relative;font-size:11px;line-height:1.45;color:var(--eve-muted);padding-left:15px}
+.eve-tree-root .eve-guide .eve-steps li::before{content:"";position:absolute;left:1px;top:6px;width:5px;height:5px;border-radius:50%;background:var(--eve-accent);opacity:.65}
+.eve-tree-root .eve-steps .k{color:var(--eve-fg);font-weight:650}
+.eve-tree-root .eve-btns{display:flex;gap:6px}
+.eve-tree-root .eve-btns .eve-btn{margin-top:0;flex:1;width:auto;padding:9px 4px;font-size:11.5px}
+.eve-tree-root .eve-btn{transition:background .16s ease,border-color .16s ease}
+.eve-tree-root .eve-row{display:flex;align-items:center;gap:9px;padding:5px 0;cursor:pointer;user-select:none}
+.eve-tree-root .eve-row input{accent-color:var(--eve-accent);width:15px;height:15px}
+.eve-tree-root .eve-grp{margin-top:12px;border-top:1px solid var(--eve-line);padding-top:11px}
+.eve-tree-root .eve-grp .eve-lbl{font:600 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--eve-faint);margin-bottom:7px}
+.eve-tree-root .eve-seg{display:flex;gap:6px}
+.eve-tree-root .eve-seg label{flex:1;text-align:center;border:1px solid var(--eve-line);border-radius:9px;padding:6px 4px;cursor:pointer;font-size:11.5px;color:var(--eve-muted);background:rgba(255,255,255,.4)}
+.eve-tree-root .eve-seg label:has(input:checked){border-color:var(--eve-accent);background:rgba(122,147,166,.14);color:var(--eve-fg);font-weight:650}
+.eve-tree-root .eve-seg input{display:none}
+.eve-tree-root .eve-btn{display:block;width:100%;margin-top:12px;border:1px solid var(--eve-line);border-radius:10px;padding:9px;background:rgba(255,255,255,.55);color:var(--eve-fg);font-size:12px;cursor:pointer;font-weight:600}
+.eve-tree-root .eve-btn:hover{background:rgba(122,147,166,.16);border-color:var(--eve-accent)}
+.eve-tree-root .eve-credit{margin-top:12px;border-top:1px solid var(--eve-line);padding-top:9px;color:var(--eve-faint);font-size:10.5px;line-height:1.5}
+.eve-tree-root .eve-credit a{color:var(--eve-muted);text-decoration:none}
+.eve-tree-root .eve-credit a:hover{text-decoration:underline}
+.eve-tree-root .eve-empty{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:360px;text-align:center;color:var(--eve-muted);font-size:13px;z-index:6}
+.eve-tree-root .eve-empty-code{display:inline-block;text-align:left;margin:12px 0;padding:10px 12px;border:1px solid var(--eve-line);border-radius:8px;background:rgba(255,255,255,.55);font-size:12px;line-height:1.5;overflow-x:auto;max-width:100%}
+.eve-tree-root.dark .eve-empty-code{background:rgba(255,255,255,.06)}
+
+/* chair lens — stakeholder overlay control (only built when the vault carries `## Stakeholder views`) */
+.eve-tree-root .eve-lenssel{width:100%;margin-top:2px;border:1px solid var(--eve-line);border-radius:9px;padding:7px 8px;background:rgba(255,255,255,.55);color:var(--eve-fg);font-size:12px;cursor:pointer}
+.eve-tree-root .eve-mirror{margin-top:9px;display:flex;flex-direction:column;gap:4px}
+.eve-tree-root .eve-mirror .eve-mcap{font:600 9px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--eve-faint);margin-bottom:2px}
+.eve-tree-root .eve-mirror .eve-mrow{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:10.5px;color:var(--eve-muted)}
+.eve-tree-root .eve-mirror .eve-mrow.on{color:var(--eve-fg);font-weight:650}
+.eve-tree-root .eve-mirror .eve-mname{flex:0 0 80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eve-tree-root .eve-mirror .eve-mbar{flex:1;height:5px;border-radius:3px;background:rgba(34,48,58,.10);overflow:hidden}
+.eve-tree-root .eve-mirror .eve-mbar i{display:block;height:100%;background:#8a5f3c;border-radius:3px}
+.eve-tree-root .eve-mirror .eve-mpct{flex:0 0 30px;text-align:right;font:600 10px/1 ui-monospace,Menlo,monospace;color:var(--eve-faint)}
+
+/* node labels (zoom-driven LOD) */
+.eve-tree-root .eve-lblnode{position:absolute;left:0;top:0;will-change:transform,opacity;opacity:0;
+  transform:translate3d(-9999px,-9999px,0);max-width:165px;display:flex;flex-direction:column;gap:1px;align-items:flex-start}
+.eve-tree-root .eve-lblnode .nt{font:600 10px/1.25 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Helvetica,Arial,sans-serif;
+  color:#22303a;letter-spacing:.1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:165px;
+  text-shadow:0 0 5px #f7f4ec,0 0 5px #f7f4ec,0 0 11px #f7f4ec,0 1px 1px rgba(34,48,58,.10)}
+.eve-tree-root .eve-lblnode .nt .fd{display:inline-block;width:5px;height:5px;border-radius:50%;margin-right:5px;vertical-align:1px;box-shadow:inset 0 0 0 1px rgba(34,48,58,.25)}
+.eve-tree-root .eve-lblnode .nd{font:400 9px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Helvetica,Arial,sans-serif;
+  color:#5d6b76;max-width:156px;opacity:0;transition:opacity .2s ease;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  text-shadow:0 0 5px #f7f4ec,0 0 5px #f7f4ec,0 0 9px #f7f4ec}
+.eve-tree-root .eve-lblnode .nd.show{opacity:1}
+.eve-tree-root .eve-lblnode.sel .nt{color:#a4632a;font-weight:700}
+/* field names */
+.eve-tree-root .eve-slabel{position:absolute;left:0;top:0;opacity:0;will-change:transform,opacity;
+  font:700 12px/1 ui-monospace,Menlo,monospace;letter-spacing:.18em;text-transform:uppercase;
+  transform:translate3d(-9999px,-9999px,0);text-shadow:0 1px 3px rgba(247,244,236,.95),0 0 8px rgba(247,244,236,.9)}
+/* flower / apple markers */
+.eve-tree-root .eve-alabel{position:absolute;left:0;top:0;opacity:0;will-change:transform,opacity;display:flex;align-items:center;gap:4px;
+  font:700 9px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;
+  transform:translate3d(-9999px,-9999px,0);text-shadow:0 0 6px #f7f4ec,0 0 6px #f7f4ec,0 0 6px #f7f4ec}
+.eve-tree-root .eve-alabel .ad{width:6px;height:6px;border-radius:50%;box-shadow:0 0 7px currentColor}
+/* tree-name label (forest): a tree's title over its crown — strongest when zoomed out */
+.eve-tree-root .eve-lenshint{font-size:10.5px;line-height:1.45;color:var(--eve-muted);margin:2px 0 7px}
+.eve-tree-root .eve-tlabel{position:absolute;left:0;top:0;opacity:0;will-change:transform,opacity;
+  font:700 13px/1.1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;letter-spacing:.02em;color:#3a5740;
+  transform:translate3d(-9999px,-9999px,0);text-shadow:0 0 7px #f7f4ec,0 0 7px #f7f4ec,0 0 12px #f7f4ec}
+/* forest indicator chip in the panel */
+.eve-tree-root .eve-topic{display:inline-block;font:600 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;
+  color:#5f7f4c;border:1px solid var(--eve-line);border-radius:7px;padding:4px 7px;margin:0 0 8px}
+
+@media (prefers-reduced-motion: reduce){
+  .eve-tree-root .eve-lblnode .nd{transition:none}
+}
+
+/* DARK MODE — 'diamonds on black' (toggled by JS; follows Obsidian's theme by default) */
+.eve-tree-root.dark{ --eve-bg:#0a0c12; --eve-card:rgba(18,22,32,.82); --eve-line:rgba(180,205,235,.15);
+  --eve-fg:#e7edf5; --eve-muted:#9fb0c4; --eve-faint:#6b7c92; --eve-accent:#8fb3d6; }
+.eve-tree-root.dark .eve-seg label{background:rgba(255,255,255,.05)}
+.eve-tree-root.dark .eve-seg label:has(input:checked){background:rgba(143,179,214,.16)}
+.eve-tree-root.dark .eve-btn,.eve-tree-root.dark .eve-lenssel{background:rgba(255,255,255,.06)}
+.eve-tree-root.dark .eve-btn:hover{background:rgba(143,179,214,.18)}
+.eve-tree-root.dark .eve-mirror .eve-mbar{background:rgba(255,255,255,.10)}
+.eve-tree-root.dark .eve-topic{color:#86e39a}
+.eve-tree-root.dark .eve-lblnode .nt{color:#eef3f9;text-shadow:0 0 5px #0a0c12,0 0 6px #0a0c12,0 0 12px #0a0c12}
+.eve-tree-root.dark .eve-lblnode .nd{color:#b9c6d6;text-shadow:0 0 5px #0a0c12,0 0 6px #0a0c12,0 0 9px #0a0c12}
+.eve-tree-root.dark .eve-lblnode.sel .nt{color:#ffd27a}
+.eve-tree-root.dark .eve-slabel{color:#c8d4e4 !important;text-shadow:0 1px 3px #0a0c12,0 0 8px #0a0c12,0 0 8px #0a0c12}
+.eve-tree-root.dark .eve-tlabel{color:#86e39a;text-shadow:0 0 7px #0a0c12,0 0 7px #0a0c12,0 0 12px #0a0c12}
+.eve-tree-root.dark .eve-alabel{text-shadow:0 0 6px #0a0c12,0 0 6px #0a0c12,0 0 6px #0a0c12}
+.eve-tree-root.dark .eve-alabel{filter:brightness(2.2)}
+
+/* ---- F2: label text-size scale (‑‑eve-txt, set live from JS). These override the shorthand font-size
+   only, so weight / line-height / family from each label's `font:` rule are preserved. ---- */
+.eve-tree-root{--eve-txt:1}
+.eve-tree-root .eve-lblnode .nt{font-size:calc(10px*var(--eve-txt,1))}
+.eve-tree-root .eve-lblnode .nd{font-size:calc(9px*var(--eve-txt,1))}
+.eve-tree-root .eve-slabel{font-size:calc(12px*var(--eve-txt,1))}
+.eve-tree-root .eve-alabel{font-size:calc(9px*var(--eve-txt,1))}
+.eve-tree-root .eve-tlabel{font-size:calc(13px*var(--eve-txt,1))}
+
+/* ---- F2: panel minimize (header control + collapsed pill) ---- */
+.eve-tree-root .eve-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.eve-tree-root .eve-hdtitle{min-width:0}
+.eve-tree-root .eve-min{flex:0 0 auto;width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--eve-line);border-radius:7px;background:rgba(255,255,255,.4);color:var(--eve-muted);
+  font-size:17px;line-height:1;cursor:pointer;user-select:none}
+.eve-tree-root .eve-min:hover{border-color:var(--eve-accent);color:var(--eve-fg)}
+.eve-tree-root .eve-ui.hidden{display:none}
+.eve-tree-root .eve-pill{display:none;top:14px;left:14px;width:auto;padding:8px 11px;align-items:center;gap:6px;
+  font-size:17px;line-height:1;cursor:pointer;user-select:none}
+.eve-tree-root .eve-pill.show{display:flex}
+.eve-tree-root.dark .eve-min{background:rgba(255,255,255,.05)}
+
+/* ---- F2: appearance sliders ---- */
+.eve-tree-root .eve-slider{margin:9px 0 2px}
+.eve-tree-root .eve-slrow{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px}
+.eve-tree-root .eve-slname{font-size:11.5px;color:var(--eve-muted)}
+.eve-tree-root .eve-slval{font:600 10px/1 ui-monospace,Menlo,monospace;color:var(--eve-faint)}
+.eve-tree-root .eve-slider input[type=range]{width:100%;margin:0;accent-color:var(--eve-accent);cursor:pointer}
+.eve-tree-root .eve-lbl2{margin-top:11px}
+
+/* ---- F3: note / bridge card (scoped under .eve-tree-root; legible in light + dark) ---- */
+.eve-tree-root .eve-note{bottom:14px;right:14px;width:300px;max-width:calc(100% - 28px);max-height:52%;overflow:auto;
+  opacity:0;transform:translateY(12px);pointer-events:none;transition:opacity .22s ease,transform .22s ease}
+.eve-tree-root .eve-note.show{opacity:1;transform:none;pointer-events:auto}
+.eve-tree-root .eve-note.bridge{border-color:rgba(176,122,60,.55)}
+.eve-tree-root .eve-note .eve-nclose{position:absolute;top:8px;right:12px;cursor:pointer;color:var(--eve-muted);font-size:15px;line-height:1}
+.eve-tree-root .eve-note .eve-nclose:hover{color:var(--eve-fg)}
+.eve-tree-root .eve-note .eve-ntag{font:700 10px/1.2 ui-monospace,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;padding-right:22px}
+.eve-tree-root .eve-note .eve-ntitle{margin:7px 22px 4px 0;font-size:16px;line-height:1.25;font-weight:700}
+.eve-tree-root .eve-note .eve-ndesc{margin:0 0 6px;color:var(--eve-fg);font-size:12.5px;line-height:1.5}
+.eve-tree-root .eve-note .eve-nsec{font:600 9px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--eve-faint);margin:10px 0 5px}
+.eve-tree-root .eve-note .eve-chip{display:inline-block;max-width:100%;margin:0 5px 5px 0;padding:4px 8px;border:1px solid var(--eve-line);
+  border-radius:8px;background:rgba(255,255,255,.5);color:var(--eve-fg);font-size:11px;cursor:pointer;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:top}
+.eve-tree-root .eve-note .eve-chip:hover{border-color:var(--eve-accent);background:rgba(122,147,166,.14)}
+.eve-tree-root .eve-note .eve-nnone{color:var(--eve-faint);font-size:11px}
+.eve-tree-root .eve-note .eve-nview{font-size:11.5px;line-height:1.45;margin:0 0 6px;color:var(--eve-fg)}
+.eve-tree-root .eve-note .eve-nview .eve-vchair{font-weight:700;color:#8a5f3c}
+.eve-tree-root .eve-note .eve-nview.on{background:rgba(192,147,111,.14);border-radius:7px;padding:4px 7px;margin:0 -7px 6px}
+.eve-tree-root .eve-note .eve-nopen{margin-top:10px}
+.eve-tree-root.dark .eve-note .eve-chip{background:rgba(255,255,255,.06)}
+.eve-tree-root.dark .eve-note .eve-nview .eve-vchair{color:#c79a6b}
+.eve-tree-root.dark .eve-note .eve-nview.on{background:rgba(192,147,111,.20)}

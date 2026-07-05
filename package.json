@@ -1,0 +1,33 @@
+{
+  "name": "eve-apple-tree",
+  "version": "0.4.0",
+  "description": "Eve's Apple Tree Thinking System — grow your Obsidian notes into a living 3D tree of light.",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+  },
+  "keywords": [
+    "obsidian",
+    "plugin",
+    "three.js",
+    "knowledge-graph",
+    "thinking",
+    "3d"
+  ],
+  "author": "Evelyn Chan",
+  "license": "MIT",
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/three": "^0.160.0",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "^0.20.0",
+    "obsidian": "^1.4.11",
+    "tslib": "^2.6.2",
+    "typescript": "^5.3.3"
+  }
+}

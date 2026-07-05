@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eve's Apple Tree — tree of light</title>
+<!--
+  ============================================================================
+  Eve's Apple Tree Thinking System — CANONICAL tree-of-light template.
+  TO MAKE A TREE FOR A TOPIC: copy this file and replace ONLY the DATA block
+  (between DATA-START and DATA-END). Do NOT rewrite the renderer or the camera.
+  The renderer AUTO-FITS any number of fields and any number of notes:
+  it always centers and sizes the tree to the data.
+
+  FOREST (D4): a vault can hold MANY trees. One folder = one tree; each tree is
+  independent (own fields, own trunk, own movable origin). The renderer accepts
+  EITHER a single-tree DATA block (TOPIC + NOTES, back-compatible) OR a forest
+  (const TREES = [...] + optional const BRIDGES = [...]). Zoom out far and each
+  tree's dot-cloud crossfades into a translucent green 🌳 — many = a forest.
+  Cross-tree links exist ONLY through a manual "bridge" that explains the link.
+  ============================================================================
+-->
+<style>
+  :root{ --bg:#f7f4ec; --card:rgba(255,253,247,.86); --line:rgba(34,48,58,.14);
+    --fg:#22303a; --muted:#5d6b76; --faint:#8a96a0; --accent:#7a93a6; }
+  /* DARK MODE — 'diamonds on black'. Toggled at runtime by adding .dark to .root. */
+  .root.dark{ --bg:#0a0c12; --card:rgba(18,22,32,.82); --line:rgba(180,205,235,.15);
+    --fg:#e7edf5; --muted:#9fb0c4; --faint:#6b7c92; --accent:#8fb3d6; }
+  .root.dark .seg label{background:rgba(255,255,255,.05)}
+  .root.dark .seg label.on{background:rgba(143,179,214,.16)}
+  .root.dark .btn,.root.dark .treesel,.root.dark .lenssel{background:rgba(255,255,255,.06)}
+  .root.dark .btn:hover{background:rgba(143,179,214,.18)}
+  .root.dark .note .chip{background:rgba(255,255,255,.06)}
+  .root.dark .note .chip:hover{background:rgba(143,179,214,.16)}
+  .root.dark .mirror .mbar{background:rgba(255,255,255,.10)}
+  .root.dark .lblnode .nt{color:#eef3f9;text-shadow:0 0 5px #0a0c12,0 0 6px #0a0c12,0 0 12px #0a0c12}
+  .root.dark .lblnode .nd{color:#b9c6d6;text-shadow:0 0 5px #0a0c12,0 0 6px #0a0c12,0 0 9px #0a0c12}
+  .root.dark .lblnode.sel .nt{color:#ffd27a}
+  .root.dark .slabel{color:#c8d4e4 !important;text-shadow:0 1px 3px #0a0c12,0 0 8px #0a0c12,0 0 8px #0a0c12}
+  .root.dark .tlabel{color:#86e39a;text-shadow:0 0 7px #0a0c12,0 0 7px #0a0c12,0 0 12px #0a0c12}
+  .root.dark .alabel{text-shadow:0 0 6px #0a0c12,0 0 6px #0a0c12,0 0 6px #0a0c12}
+  .root.dark .alabel{filter:brightness(2.2)}
+  .root.dark .note .view .vchair{color:#d8a86a}
+  html,body{margin:0;height:100%;background:var(--bg);overflow:hidden}
+  .root{position:fixed;inset:0;overflow:hidden;background:var(--bg);
+    font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Helvetica,Arial,sans-serif;color:var(--fg)}
+  .cv{position:absolute;inset:0;display:block}
+  .labels{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:5}
+  .card{position:absolute;background:var(--card);backdrop-filter:blur(10px);border:1px solid var(--line);
+    border-radius:14px;padding:14px 16px;box-shadow:0 8px 30px rgba(34,48,58,.07);z-index:6}
+  .ui{top:14px;left:14px;width:266px;max-height:calc(100% - 28px);overflow:auto}
+  .ui h1{margin:0 0 3px;font-size:15px;letter-spacing:.2px;font-weight:700}
+  .ui .sub{color:var(--muted);font-size:11.5px;margin:0 0 10px}
+  .ui .topic{display:inline-block;font:600 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--accent);border:1px solid var(--line);border-radius:7px;padding:4px 7px;margin:0 0 12px}
+  /* redesigned panel — clearer intro, how-to steps, slogan, fluent controls */
+  .ui .hd{margin:0 0 9px}
+  .ui .brand{font-size:16px;font-weight:750;letter-spacing:.2px;line-height:1.15}
+  .ui .slogan{font:italic 600 12.5px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:var(--accent);letter-spacing:.01em;margin-top:2px}
+  .ui .pitch{font-size:11.5px;line-height:1.5;color:var(--muted);margin:0 0 11px}
+  .ui .pitch b{color:var(--fg);font-weight:650}
+  .ui .guide .steps{list-style:none;margin:3px 0 0;padding:0;display:flex;flex-direction:column;gap:7px}
+  .ui .guide .steps li{position:relative;font-size:11px;line-height:1.45;color:var(--muted);padding-left:15px}
+  .ui .guide .steps li::before{content:"";position:absolute;left:1px;top:6px;width:5px;height:5px;border-radius:50%;background:var(--accent);opacity:.65}
+  .ui .steps .k{color:var(--fg);font-weight:650}
+  .ui .btns{display:flex;gap:6px}
+  .ui .btns .btn{margin-top:0;flex:1;width:auto;padding:9px 4px;font-size:11.5px}
+  .ui .btn{transition:background .16s ease,border-color .16s ease}
+  .ui .row{transition:color .16s ease}
+  .row{display:flex;align-items:center;gap:9px;padding:5px 0;cursor:pointer;user-select:none}
+  .row input{accent-color:var(--accent);width:15px;height:15px}
+  .grp{margin-top:12px;border-top:1px solid var(--line);padding-top:11px}
+  .grp .lbl{font:600 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:7px}
+  .seg{display:flex;gap:6px}
+  .seg label{flex:1;text-align:center;border:1px solid var(--line);border-radius:9px;padding:6px 4px;cursor:pointer;font-size:11.5px;color:var(--muted);background:rgba(255,255,255,.4)}
+  .seg label.on{border-color:var(--accent);background:rgba(122,147,166,.14);color:var(--fg);font-weight:650}
+  .seg input{display:none}
+  .btn{display:block;width:100%;margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:9px;background:rgba(255,255,255,.55);color:var(--fg);font-size:12px;cursor:pointer;font-weight:600}
+  .btn:hover{background:rgba(122,147,166,.16);border-color:var(--accent)}
+  /* tree focus selector (forest only) */
+  .treesel{width:100%;margin-top:2px;border:1px solid var(--line);border-radius:9px;padding:7px 8px;background:rgba(255,255,255,.55);color:var(--fg);font-size:12px;cursor:pointer}
+  /* chair lens — stakeholder overlay control (only built when the data carries `views`) */
+  .lenssel{width:100%;margin-top:2px;border:1px solid var(--line);border-radius:9px;padding:7px 8px;background:rgba(255,255,255,.55);color:var(--fg);font-size:12px;cursor:pointer}
+  .lenshint{font-size:10.5px;line-height:1.45;color:var(--muted);margin:2px 0 7px}
+  .note .view.off{opacity:.42}
+  .mirror{margin-top:9px;display:flex;flex-direction:column;gap:4px}
+  .mirror .mcap{font:600 9px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:2px}
+  .mirror .mrow{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:10.5px;color:var(--muted)}
+  .mirror .mrow.on{color:var(--fg);font-weight:650}
+  .mirror .mname{flex:0 0 80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mirror .mbar{flex:1;height:5px;border-radius:3px;background:rgba(34,48,58,.10);overflow:hidden}
+  .mirror .mbar i{display:block;height:100%;background:#8a5f3c;border-radius:3px}
+  .mirror .mpct{flex:0 0 30px;text-align:right;font:600 10px/1 ui-monospace,Menlo,monospace;color:var(--faint)}
+  .credit{margin-top:12px;border-top:1px solid var(--line);padding-top:9px;color:var(--faint);font-size:10.5px;line-height:1.5}
+  .credit a{color:var(--muted);text-decoration:none}.credit a:hover{text-decoration:underline}
+  /* click → note card (the "open the note" affordance for standalone) */
+  .note{bottom:14px;right:14px;width:300px;max-height:46%;overflow:auto;opacity:0;transform:translateY(12px);pointer-events:none;transition:opacity .25s,transform .25s}
+  .note.show{opacity:1;transform:none;pointer-events:auto}
+  .note .nclose{position:absolute;top:9px;right:12px;cursor:pointer;color:var(--muted);font-size:18px;line-height:1}
+  .note .ntag{font:700 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase}
+  .note h3{margin:7px 28px 4px 0;font-size:16px;line-height:1.25}
+  .note .ndesc{margin:0 0 8px;color:var(--fg);font-size:12.5px;line-height:1.5}
+  .note .nsec{font:600 9px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin:9px 0 5px}
+  .note .chip{display:inline-block;margin:0 5px 5px 0;padding:4px 8px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.5);color:var(--fg);font-size:11px;cursor:pointer}
+  .note .chip:hover{border-color:var(--accent);background:rgba(122,147,166,.14)}
+  .note .none{color:var(--faint);font-size:11px}
+  /* stakeholder views — a content layer inside a dot (POV is never a field). Shown on click. */
+  .note .view{font-size:11.5px;line-height:1.45;margin:0 0 6px;color:var(--fg)}
+  .note .view .vchair{font-weight:700;color:#8a5f3c}
+  .note .view.on{background:rgba(192,147,111,.14);border-radius:7px;padding:4px 7px;margin:0 -7px 6px}
+  /* bridge card accent (cross-tree link explanation) */
+  .note.bridge{border-color:rgba(176,122,60,.55)}
+  .lblnode{position:absolute;left:0;top:0;will-change:transform,opacity;opacity:0;transform:translate3d(-9999px,-9999px,0);
+    max-width:165px;display:flex;flex-direction:column;gap:1px;align-items:flex-start}
+  .lblnode .nt{font:600 10px/1.25 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#22303a;letter-spacing:.1px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:165px;text-shadow:0 0 5px #f7f4ec,0 0 5px #f7f4ec,0 0 11px #f7f4ec}
+  .lblnode .nt .fd{display:inline-block;width:5px;height:5px;border-radius:50%;margin-right:5px;vertical-align:1px;box-shadow:inset 0 0 0 1px rgba(34,48,58,.25)}
+  .lblnode .nd{font:400 9px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#5d6b76;max-width:156px;opacity:0;
+    transition:opacity .2s ease;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+    text-shadow:0 0 5px #f7f4ec,0 0 5px #f7f4ec,0 0 9px #f7f4ec}
+  .lblnode .nd.show{opacity:1}
+  .lblnode.sel .nt{color:#a4632a;font-weight:700}
+  .slabel{position:absolute;left:0;top:0;opacity:0;will-change:transform,opacity;font:700 11px/1 ui-monospace,Menlo,monospace;
+    letter-spacing:.16em;text-transform:uppercase;transform:translate3d(-9999px,-9999px,0);
+    text-shadow:0 1px 3px rgba(247,244,236,.95),0 0 8px rgba(247,244,236,.95),0 0 8px rgba(247,244,236,.95)}
+  /* tree-name label (forest): a tree's title, shown over its crown — strongest when zoomed out */
+  .tlabel{position:absolute;left:0;top:0;opacity:0;will-change:transform,opacity;font:700 13px/1.1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;
+    letter-spacing:.02em;color:#3a5740;transform:translate3d(-9999px,-9999px,0);
+    text-shadow:0 0 7px #f7f4ec,0 0 7px #f7f4ec,0 0 12px #f7f4ec}
+  .alabel{position:absolute;left:0;top:0;opacity:0;will-change:transform,opacity;display:flex;align-items:center;gap:4px;
+    font:700 9px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;transform:translate3d(-9999px,-9999px,0);
+    text-shadow:0 0 6px #f7f4ec,0 0 6px #f7f4ec,0 0 6px #f7f4ec}
+  .alabel .ad{width:6px;height:6px;border-radius:50%;box-shadow:0 0 7px currentColor}
+  @media (prefers-reduced-motion: reduce){ .lblnode .nd{transition:none} }
+</style>
+</head>
+<body>
+<div class="root">
+  <canvas class="cv"></canvas>
+  <div class="labels" id="labels"></div>
+  <div class="card ui">
+    <div class="hd">
+      <div class="brand">🍎 Eve's Apple Tree</div>
+      <div class="slogan">think how to think</div>
+    </div>
+    <p class="pitch">Your notes become a living <b>tree of light</b> — so you can <b>see the shape of your own thinking</b>: forgotten links resurface, related ideas cluster, and your breakthroughs glow.</p>
+    <span class="topic" id="topic">🌳 topic</span>
+    <div class="grp guide"><div class="lbl">How to use it</div>
+      <ul class="steps">
+        <li><span class="k">Drag</span> to fly through it · <span class="k">scroll</span> to zoom · <span class="k">two-finger-click&nbsp;+&nbsp;drag</span> to pan.</li>
+        <li><span class="k">Click a dot</span> → open that idea and see everything it links to.</li>
+        <li><span class="k">Zoom sets the detail</span> → far out: green tree icons (names beneath) · mid: the constellation · closer: <span class="k">titles</span> · closest: titles + <span class="k">descriptions</span>.</li>
+        <li>Related ideas <span class="k">cluster</span> together; your 🌸 ah-has &amp; 🍎 outputs <span class="k">glow</span>.</li>
+      </ul>
+    </div>
+    <div class="grp"><div class="lbl">Show / hide</div><div id="checks"></div></div>
+    <div class="grp"><div class="lbl">Field render mode</div>
+      <div class="seg" id="seg">
+        <label data-mode="flat" class="on"><input type="radio" name="mode" checked>Flat wedge</label>
+        <label data-mode="column"><input type="radio" name="mode">Column</label>
+      </div>
+    </div>
+    <div class="grp"><div class="lbl">View</div>
+      <div class="btns">
+        <button class="btn" id="reset" title="Return to the opening view">↺ Reset</button>
+        <button class="btn" id="recenter" title="Re-frame the whole tree / forest">⊹ Fit</button>
+        <button class="btn" id="themebtn" title="Switch between light and diamond-dark">🌙 Dark</button>
+      </div>
+    </div>
+    <div class="credit" style="display:none"></div>
+  </div>
+  <div class="card note" id="noteCard">
+    <span class="nclose" id="nclose">×</span>
+    <span class="ntag" id="ntag"></span>
+    <h3 id="ntitle"></h3>
+    <div class="ndesc" id="ndesc"></div>
+    <div id="nlinks"></div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ===== DATA-START — replace ONLY this block. =====
+   Note shape: { id, type, field, time, title, desc, links:[ids], views?:[{c,t}] }
+   - type:  'root' | 'trunk' | 'leaf' | 'flower' | 'apple'
+   - field: a lens/sector name (string), or null for root/trunk (they sit on the axis)
+   - time:  number or date-ordinal -> height (older = lower)
+   - links: array of other note ids IN THE SAME TREE (the rhizome; cross-field links matter most)
+   - views: OPTIONAL stakeholder POV layer [{c:chair, t:take}] -> shown on click.
+            POV is a content layer inside the dot, NEVER a field. Drives the chair-lens.
+
+   SINGLE TREE (back-compatible): define TOPIC + NOTES (+ optional CAST). The renderer
+   wraps it as a one-tree forest at the origin.
+
+   FOREST (many trees): instead define
+     const TREES = [
+       { id:'renaissance', topic:'The Renaissance', origin:{x:0,z:0}, notes:[...], cast:[...] },
+       { id:'science',     topic:'Scientific Revolution', origin:{x:16,z:0}, notes:[...] },
+     ];
+   - id:      stable tree key (used by bridges). origin: {x,z} world position (movable).
+              Omit origin and trees auto-arrange in a centered row.
+   - notes:   that tree's note array (its own fields/trunk; ids are scoped to the tree).
+   - cast:    OPTIONAL per-tree stakeholder cast (chairs to consider, incl. never-sat ones).
+   CROSS-TREE links exist ONLY via bridges (a manual "middle file" that explains the link):
+     const BRIDGES = [
+       { id:'b1', from:'renaissance', to:'science', fromNote:'<id>', toNote:'<id>',
+         title:'why these relate', explain:'one sentence on the linkage' },
+     ];
+   (fromNote/toNote optional — without them the bridge joins the two trees' centers.)
+*/
+const TOPIC = "Example · how this works";
+const NOTES = [
+  {id:'Root', type:'root', field:null, time:0, title:'How & why I think', desc:'The soil the whole tree grows from.', links:['Trunk']},
+  {id:'Trunk', type:'trunk', field:null, time:10, title:'Thinking in public', desc:'Work ideas out where they can be linked and grown.', links:['Idea A','Evidence B']},
+  {id:'Idea A', type:'leaf', field:'Maker', time:30, title:'One idea per note', desc:'Atoms link and recombine; lumps just sit there.', links:['Trunk','Aha']},
+  {id:'Evidence B', type:'leaf', field:'Researcher', time:40, title:'What counts as evidence', desc:'Decide what would change your mind before collecting.', links:['Trunk','Critique C']},
+  {id:'Critique C', type:'leaf', field:'Critic', time:50, title:'The weakest link', desc:'Attack the one assumption that collapses the argument.', links:['Idea A','Evidence B']},
+  {id:'Story D', type:'leaf', field:'Storyteller', time:55, title:'Who is this for', desc:'Name the one reader before writing a line.', links:['Trunk']},
+  {id:'Aha', type:'flower', field:'Maker', time:70, title:'Links beat folders', desc:'The structure was already there in the links.', links:['Idea A','Critique C']},
+  {id:'Output', type:'apple', field:'Storyteller', time:85, title:'The 200-word version', desc:'Producing it forced the idea to finish.', links:['Aha','Story D']},
+];
+/* ===== DATA-END ===== */
+
+/* ============================================================================
+   RENDERER — do not edit when making a new tree. Auto-fits any data + any forest.
+   ============================================================================ */
+const BG=0xf7f4ec, FOG=0xe7dfd2;
+const H=9.0, R=5.5, R_INNER=1.6, SEC_PAD=0.06;       // per-tree scene scale (the locked envelope)
+const TREE_SPAN=2*R+5;                                // auto-arrange centre-to-centre spacing (no envelope overlap)
+const LOD_START=1.15, LOD_END=1.60;                   // ×fit-distance: the dots→silhouette crossfade band (reachable)
+const SIL_OPACITY=0.50, SIL_GREEN='#5d8a3e';          // translucent green 🌳 silhouette (50% transparent)
+const BRIDGE_COL='#b07a3c';                            // cross-tree bridge accent
+const PALETTE=[['#5d7c8c','#3c5663'],['#b09161','#7d6334'],['#bb8079','#8a534b'],['#7d9b78','#516e4d'],
+  ['#8f87a0','#5f566f'],['#7e9aa6','#4d6b77'],['#c0936f','#8a5f3c'],['#9a9466','#65603a']];
+const ROLE={ leaf:{tint:'#aeb9b6',ring:'#7c8a86',r:0.21}, trunk:{tint:'#8f87a0',ring:'#5f566f',r:0.30},
+  root:{tint:'#a98f5e',ring:'#6f5a32',r:0.54}, flower:{tint:'#cf8aa3',ring:'#9c5572',r:0.40,glow:'#ff9ec2'},
+  apple:{tint:'#d77f72',ring:'#a14b3f',r:0.42,glow:'#ff8a76'} };
+const LINKS={spine:['#6f6780',.60],branch:['#8a8276',.30],intra:['#7d7a86',.34],rhizome:['#5f7382',.14]};
+const IMPORTANCE={root:1.0,trunk:0.8,apple:0.7,flower:0.65,leaf:0.0};
+/* THEME — light (the locked warm 'tree of light') + dark ('diamonds on black'). Runtime toggle.
+   A tree can default dark by putting `const THEME = 'dark';` in its DATA block. */
+const THEMES={ light:{bg:0xf7f4ec, fog:0xe7dfd2, linkMul:1.0, dark:false},
+               dark: {bg:0x0a0c12, fog:0x11141e, linkMul:2.0, dark:true} };
+let theme = (typeof THEME!=='undefined' && String(THEME).toLowerCase()==='dark') ? 'dark' : 'light';
+let LINK_MUL = THEMES[theme].linkMul;
+
+const hash01=s=>{let h=2166136261>>>0;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}h^=h>>>13;h=Math.imul(h,0x5bd1e995);h^=h>>>15;return (h>>>0)/4294967296;};
+const place=(a,r,h)=>new THREE.Vector3(r*Math.cos(a),h,-r*Math.sin(a));
+const clamp01=x=>x<0?0:x>1?1:x;
+const smooth=(a,b,x)=>{const t=clamp01((x-a)/(b-a));return t*t*(3-2*t);};
+const hexA=(hex,a)=>{const n=parseInt(hex.slice(1),16);return`rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;};
+const lighten=(hex,amt)=>{const n=parseInt(hex.slice(1),16);let r=n>>16&255,g=n>>8&255,b=n&255;r=Math.round(r+(255-r)*amt);g=Math.round(g+(255-g)*amt);b=Math.round(b+(255-b)*amt);return(r<<16)|(g<<8)|b;};
+const secOf=i=>PALETTE[((i%PALETTE.length)+PALETTE.length)%PALETTE.length];
+const angleOf=(i,K)=>i*(Math.PI*2/Math.max(1,K));
+
+/* ---- normalize DATA into a FOREST (array of trees) + bridges ---- */
+const FOREST = (typeof TREES!=='undefined' && Array.isArray(TREES))
+  ? TREES.map((t,i)=>({ id:t.id||('tree'+i), topic:t.topic||t.id||('Tree '+(i+1)),
+      notes:t.notes||[], cast:Array.isArray(t.cast)?t.cast:[], origin:t.origin||null }))
+  : [{ id:'main', topic:(typeof TOPIC!=='undefined'?TOPIC:'Tree'),
+       notes:(typeof NOTES!=='undefined'?NOTES:[]),
+       cast:(typeof CAST!=='undefined'&&Array.isArray(CAST))?CAST:[], origin:{x:0,z:0} }];
+const BRIDGE_DEFS = (typeof BRIDGES!=='undefined' && Array.isArray(BRIDGES)) ? BRIDGES : [];
+/* auto-arrange any tree without an explicit origin into a centred row */
+FOREST.forEach((t,i)=>{ if(!t.origin){ const n=FOREST.length; t.origin={ x:(i-(n-1)/2)*TREE_SPAN, z:0 }; } });
+
+/* scene */
+const canvas=document.querySelector('.cv');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene(); scene.background=new THREE.Color(BG); scene.fog=new THREE.Fog(FOG,20,60);
+const camera=new THREE.PerspectiveCamera(50,1,0.1,2000);
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true; controls.dampingFactor=0.08; controls.minDistance=3; controls.maxDistance=400;
+/* MOTION:
+   · drag                     → orbit
+   · two-finger scroll/wheel  → zoom (toward the cursor)
+   · two-finger-click + drag  → pan   (right-mouse; the reset-on-right-click is removed)
+   (3-finger pan is impossible in a browser — macOS doesn't surface 3-finger trackpad gestures as JS events.)
+   Reset is on the panel buttons (Reset view / Recenter & fit). */
+controls.enablePan=true; controls.screenSpacePanning=true; controls.zoomToCursor=true;
+controls.mouseButtons={LEFT:THREE.MOUSE.ROTATE, MIDDLE:THREE.MOUSE.DOLLY, RIGHT:THREE.MOUSE.PAN};
+const HOME_POS=new THREE.Vector3(), HOME_TGT=new THREE.Vector3(); let D0=29;
+const G={ flat:new THREE.Group(), col:new THREE.Group(), struct:new THREE.Group(), rhiz:new THREE.Group(),
+  dots:new THREE.Group(), glow:new THREE.Group(), sil:new THREE.Group(), bridge:new THREE.Group(), sel:new THREE.Group() };
+Object.values(G).forEach(g=>scene.add(g)); G.col.visible=false;
+const fadeMats=[];   // {m,b}: materials (wedges, ground, links) faded out as the silhouette fades in
+
+/* textures */
+const texc={};
+function dotTex(tint,ring){const k=tint+ring;if(texc[k])return texc[k];const S=160,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');
+  const g=x.createRadialGradient(80,80,8,80,80,78);g.addColorStop(0,hexA(tint,.22));g.addColorStop(1,hexA(tint,0));x.fillStyle=g;x.beginPath();x.arc(80,80,78,0,7);x.fill();
+  x.fillStyle=hexA(tint,.96);x.beginPath();x.arc(80,80,30,0,7);x.fill();x.lineWidth=5;x.strokeStyle=hexA(ring,.95);x.beginPath();x.arc(80,80,30,0,7);x.stroke();
+  x.fillStyle='#fff';x.beginPath();x.arc(80,80,12,0,7);x.fill();const t=new THREE.CanvasTexture(c);t.anisotropy=4;texc[k]=t;return t;}
+function glowTex(col){const k='g'+col;if(texc[k])return texc[k];const S=200,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');
+  const g=x.createRadialGradient(100,100,4,100,100,100);g.addColorStop(0,hexA(col,.55));g.addColorStop(.4,hexA(col,.18));g.addColorStop(1,hexA(col,0));x.fillStyle=g;x.fillRect(0,0,S,S);
+  const t=new THREE.CanvasTexture(c);texc[k]=t;return t;}
+const lightHex=(hex,amt)=>'#'+lighten(hex,amt).toString(16).padStart(6,'0');
+/* DARK-MODE dot: a glowing gem — colored halo + white core + a 4/8-point sparkle. With AdditiveBlending
+   on the dark background it reads like a little diamond twinkling. (Light mode keeps dotTex.) */
+function diamondTex(tint){const k='dia'+tint;if(texc[k])return texc[k];const S=160,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');const M=80;
+  let g=x.createRadialGradient(M,M,1,M,M,74);g.addColorStop(0,hexA(tint,.9));g.addColorStop(.30,hexA(tint,.42));g.addColorStop(1,hexA(tint,0));x.fillStyle=g;x.beginPath();x.arc(M,M,74,0,7);x.fill();
+  x.globalCompositeOperation='lighter';
+  const ray=(len,wid)=>{const gg=x.createLinearGradient(M-len,M,M+len,M);gg.addColorStop(0,'rgba(255,255,255,0)');gg.addColorStop(.5,'rgba(255,255,255,.92)');gg.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=gg;x.fillRect(M-len,M-wid/2,len*2,wid);};
+  const spin=(ang,len,wid)=>{x.save();x.translate(M,M);x.rotate(ang);x.translate(-M,-M);ray(len,wid);x.restore();};
+  spin(0,72,5); spin(Math.PI/2,72,5); spin(Math.PI/4,40,3); spin(-Math.PI/4,40,3);
+  g=x.createRadialGradient(M,M,0,M,M,16);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.5,hexA(lightHex(tint,.6),.95));g.addColorStop(1,hexA(tint,0));x.fillStyle=g;x.beginPath();x.arc(M,M,16,0,7);x.fill();
+  x.globalCompositeOperation='source-over';
+  const t=new THREE.CanvasTexture(c);t.anisotropy=4;texc[k]=t;return t;}
+function ringTex(){if(texc.ring)return texc.ring;const S=128,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');
+  x.lineWidth=7;x.strokeStyle='rgba(34,48,58,.9)';x.beginPath();x.arc(64,64,56,0,7);x.stroke();x.lineWidth=3;x.strokeStyle='rgba(255,255,255,.9)';x.beginPath();x.arc(64,64,56,0,7);x.stroke();
+  const t=new THREE.CanvasTexture(c);texc.ring=t;return t;}
+/* a translucent, green, tree-SHAPED silhouette (canopy blobs + trunk) for the zoom-out LOD */
+function treeSilTex(){ if(texc.sil) return texc.sil; const S=256,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');
+  x.fillStyle=hexA('#5b4632',.92); x.fillRect(S*0.45,S*0.58,S*0.10,S*0.38);                 // trunk
+  // crisp leafy crown: near-solid green lobes with only a thin soft edge (reads as a tree, not a cloud)
+  const lobe=(cx,cy,r)=>{const g=x.createRadialGradient(cx,cy,r*0.78,cx,cy,r);g.addColorStop(0,hexA(SIL_GREEN,.96));g.addColorStop(.86,hexA(SIL_GREEN,.93));g.addColorStop(1,hexA(SIL_GREEN,0));x.fillStyle=g;x.beginPath();x.arc(cx,cy,r,0,7);x.fill();};
+  lobe(S*0.50,S*0.30,S*0.27); lobe(S*0.34,S*0.42,S*0.20); lobe(S*0.66,S*0.42,S*0.20);
+  lobe(S*0.50,S*0.46,S*0.25); lobe(S*0.40,S*0.23,S*0.13); lobe(S*0.60,S*0.23,S*0.13);
+  const t=new THREE.CanvasTexture(c); texc.sil=t; return t; }
+function bridgeTex(){ if(texc.bridge) return texc.bridge; const S=128,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');
+  const g=x.createRadialGradient(64,64,4,64,64,60);g.addColorStop(0,hexA(BRIDGE_COL,.95));g.addColorStop(.55,hexA(BRIDGE_COL,.5));g.addColorStop(1,hexA(BRIDGE_COL,0));x.fillStyle=g;x.beginPath();x.arc(64,64,60,0,7);x.fill();
+  x.fillStyle='#fff';x.font='bold 60px ui-monospace,Menlo,monospace';x.textAlign='center';x.textBaseline='middle';x.fillText('⇄',64,66);
+  const t=new THREE.CanvasTexture(c); texc.bridge=t; return t; }
+
+/* ---- R8 placement: per tree, around its LOCAL origin. time -> Y (semantic), field -> wedge.
+   Dots never overlap regardless of time: within each field we RELAX heights apart to a minimum
+   gap (keeping time order), then golden-ratio spread angle + depth. Measured, not eyeballed. */
+/* ---- OPT-IN (const CLUSTER=true): link-aware clustering. Keeps field wedge + height band,
+   but pulls LINKED dots together and repels neighbours to a normal gap, so related dots
+   cluster while unrelated ones stay apart. Runs after R8 base placement, in LOCAL coords. ---- */
+function clusterRelax(notes, K){
+  const leaves=notes.filter(n=>n.type==='leaf'&&n.fi>=0);
+  if(leaves.length<3 || K>=20) return;   // K>=20: pads eat the wedges, containment math would be invalid
+  const idx=new Map(leaves.map((n,i)=>[n.id,i]));
+  // strong repulsion → normal breathing gap; gentle SAME-FIELD attraction → directly-linked dots sit closer.
+  // cross-field links are left as edges (no pull) so wedges stay readable & don't collapse to centre.
+  const MIND=0.82, ATT=0.013, REP=1.0, STEP=0.40, ITER=130, TAU=6.2831853, ROOM=1.42;
+  for(const n of leaves){ n._a0=angleOf(n.fi,K)+SEC_PAD+0.10; n._a1=angleOf(n.fi+1,K)-SEC_PAD-0.10;
+    n._hlo=Math.max(0.7,n.pos.y-2.2); n._hhi=Math.min(H*1.16,n.pos.y+2.2); }
+  for(let it=0; it<ITER; it++){
+    const D=leaves.map(()=>[0,0,0]);
+    for(let i=0;i<leaves.length;i++){ const n=leaves[i];
+      for(const l of (n.links||[])){ const j=idx.get(l); if(j==null||j===i) continue; const m=leaves[j];
+        if(m.fi!==n.fi) continue;                     // same-field attraction only
+        D[i][0]+=(m.pos.x-n.pos.x)*ATT; D[i][1]+=(m.pos.y-n.pos.y)*ATT*0.4; D[i][2]+=(m.pos.z-n.pos.z)*ATT;
+        D[j][0]+=(n.pos.x-m.pos.x)*ATT; D[j][1]+=(n.pos.y-m.pos.y)*ATT*0.4; D[j][2]+=(n.pos.z-m.pos.z)*ATT; } }
+    for(let i=0;i<leaves.length;i++){ const a=leaves[i]; for(let j=i+1;j<leaves.length;j++){ const b=leaves[j];
+      let ex=a.pos.x-b.pos.x, ey=a.pos.y-b.pos.y, ez=a.pos.z-b.pos.z; let L=Math.hypot(ex,ey,ez)||1e-3;
+      if(L<MIND){ const f=REP*(MIND-L)/L; D[i][0]+=ex*f;D[i][1]+=ey*f*0.4;D[i][2]+=ez*f; D[j][0]-=ex*f;D[j][1]-=ey*f*0.4;D[j][2]-=ez*f; } } }
+    for(let i=0;i<leaves.length;i++){ const n=leaves[i]; let mx=D[i][0],my=D[i][1],mz=D[i][2];
+      const ml=Math.hypot(mx,my,mz); if(ml>STEP){ const s=STEP/ml; mx*=s;my*=s;mz*=s; }
+      let x=n.pos.x+mx, y=n.pos.y+my, z=n.pos.z+mz;
+      y=Math.min(n._hhi,Math.max(n._hlo,y));
+      let ang=Math.atan2(-z,x); if(ang<0)ang+=TAU; let r=Math.hypot(x,z);
+      let a0=n._a0,a1=n._a1; if(a0<0)a0+=TAU; if(a1<0)a1+=TAU;
+      if(a1>=a0){ if(ang<a0)ang=a0; else if(ang>a1)ang=a1; }
+      const canopy=0.30+0.70*(Math.min(1,y/H)); const rmax=R_INNER+canopy*(R*ROOM-R_INNER); const rmin=R_INNER+0.15;
+      if(r<rmin)r=rmin; else if(r>rmax)r=rmax;
+      n.pos.set(r*Math.cos(ang), y, -r*Math.sin(ang)); } }
+}
+
+function placeAll(notes, fieldIndex, K){
+  if(!notes.length) return;   // Math.min(...[]) is Infinity — never let an empty tree poison span
+  const ts=notes.map(n=>n.time),tMin=Math.min(...ts),tMax=Math.max(...ts),span=(tMax-tMin)||1;
+  for(const n of notes){ n.tNorm=(n.time-tMin)/span; n.fi=(n.field!=null&&fieldIndex.has(n.field))?fieldIndex.get(n.field):-1; }
+  const GA=2.39996323, MINGAP=0.52;
+  function relax(hs, lo, hi){ const o=hs.slice();
+    for(let i=1;i<o.length;i++) if(o[i] < o[i-1]+MINGAP) o[i]=o[i-1]+MINGAP;
+    const sp=o[o.length-1]-lo; if(o[o.length-1]>hi && sp>1e-6){ const s=(hi-lo)/sp; for(let i=0;i<o.length;i++) o[i]=lo+(o[i]-lo)*s; }
+    return o; }
+  const groups=new Map();
+  const roots=notes.filter(n=>n.type==='root');
+  for(const n of notes){ if(n.type==='root'){ // multiple roots spread on a small golden-angle ring so they don't stack
+      const ri=roots.indexOf(n); n.pos=roots.length>1?new THREE.Vector3(Math.cos(ri*GA)*0.15,-1.2,Math.sin(ri*GA)*0.15):new THREE.Vector3(0,-1.2,0); continue; }
+    const key=(n.type==='trunk'||n.fi<0)?'_axis':n.fi; if(!groups.has(key)) groups.set(key,[]); groups.get(key).push(n); }
+  const axis=(groups.get('_axis')||[]).sort((a,b)=>a.time-b.time||(a.id<b.id?-1:1));
+  { const hs=relax(axis.map(n=>0.6+n.tNorm*(H-0.8)), 0.6, H-0.4);
+    axis.forEach((n,i)=>{ n.pos=new THREE.Vector3(Math.cos(i*GA)*0.22, hs[i], Math.sin(i*GA)*0.22); }); }
+  for(const [key,leaves] of groups){ if(key==='_axis') continue;
+    const a0=angleOf(key,K)+SEC_PAD+0.10, a1=angleOf(key+1,K)-SEC_PAD-0.10,
+      aw=a1>a0?a1-a0:(6.2831853/K)*0.8;   // K>=20: pads eat the wedge — fall back to an equal share of the circle, never a collapsed wedge
+    leaves.sort((a,b)=>a.time-b.time||(a.id<b.id?-1:1));
+    const hs=relax(leaves.map(n=>0.7+n.tNorm*(H-1.2)), 0.7, H-0.5);
+    leaves.forEach((n,i)=>{ const h=hs[i], canopy=0.30+0.70*(h/H);
+      const phi=a0 + aw*(0.08 + 0.84*((i*0.6180339887)%1));
+      const rho=R_INNER + canopy*(R-R_INNER)*(0.40 + 0.50*((i*0.7548776662+0.33)%1));
+      n.pos=place(phi, rho, h); });
+  }
+  if(typeof CLUSTER!=='undefined' && CLUSTER) clusterRelax(notes, K);
+}
+
+/* wedge helpers (shared) */
+function wedge(a0,a1){const s=new THREE.Shape();s.moveTo(0,0);s.lineTo(R*Math.cos(a0),R*Math.sin(a0));s.absarc(0,0,R,a0,a1,false);s.lineTo(0,0);return s;}
+function edgeFade(a,b,ring,grp){const g=new THREE.BufferGeometry().setFromPoints([a,b]);const c=new THREE.Color(ring);
+  g.setAttribute('color',new THREE.BufferAttribute(new Float32Array([c.r,c.g,c.b,0.24,c.r,c.g,c.b,0]),4));
+  const m=new THREE.LineBasicMaterial({vertexColors:true,transparent:true,fog:true}); const l=new THREE.Line(g,m);l.renderOrder=-1;grp.add(l);fadeMats.push({m,b:1});}
+
+/* per-tree build: dots, links, fields, sector labels, silhouette */
+const ALLNOTES=[];
+const sectorLabels=[];   // {el,anchor}
+const labelsEl=document.getElementById('labels');
+
+function buildTree(tree){
+  const notes=tree.notes, ox=tree.origin.x, oz=tree.origin.z;
+  const fieldIndex=new Map();
+  for(const n of notes){ if(n.field!=null && !fieldIndex.has(n.field)) fieldIndex.set(n.field,fieldIndex.size); }
+  const K=Math.max(1,fieldIndex.size);
+  placeAll(notes, fieldIndex, K);
+  for(const n of notes){ n.tree=tree; n.pos.x+=ox; n.pos.z+=oz; }      // local -> world (movable origin)
+  const byId=new Map(notes.map(n=>[n.id,n]));
+  const incoming=new Map();
+  for(const n of notes) for(const id of (n.links||[])){ if(byId.has(id)){ if(!incoming.has(id))incoming.set(id,[]); incoming.get(id).push(n.id); } }
+  tree.byId=byId; tree.incoming=incoming; tree.fieldIndex=fieldIndex; tree.K=K;
+
+  /* dots */
+  for(const n of notes){ const role=ROLE[n.type]||ROLE.leaf; let tint=role.tint,ring=role.ring;
+    if(n.type==='leaf'&&n.fi>=0){const s=secOf(n.fi);tint=s[0];ring=s[1];}
+    const taper=n.type==='trunk'?1-0.4*n.tNorm:1; const sz=role.r*2*taper;
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:dotTex(tint,ring),transparent:true,depthWrite:false,fog:true}));
+    sp.position.copy(n.pos); sp.scale.set(sz,sz,1); sp.userData={n,base:sz,tint,ring}; n.sp=sp; n._lens=1; G.dots.add(sp);
+    if(role.glow){const gs=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex(role.glow),transparent:true,depthWrite:false,blending:THREE.NormalBlending,fog:true,opacity:.9}));
+      gs.position.copy(n.pos);const z=role.r*5;gs.scale.set(z,z,1);n.gs=gs;n._lensG=0.9;G.glow.add(gs);} }
+
+  /* links (within this tree only) */
+  { const sp=[],sc=[],rp=[],rc=[];
+    for(const n of notes) for(const id of (n.links||[])){ const b=byId.get(id); if(!b||b===n) continue;
+      const af=n.fi, bf=b.fi; let kind = (af<0&&bf<0)?'spine':(af<0||bf<0)?'branch':(af===bf)?'intra':'rhizome';
+      const [hex]=LINKS[kind]; const col=new THREE.Color(hex); const into = kind==='rhizome'?[rp,rc]:[sp,sc];
+      into[0].push(n.pos.x,n.pos.y,n.pos.z,b.pos.x,b.pos.y,b.pos.z); into[1].push(col.r,col.g,col.b,col.r,col.g,col.b); }
+    const mk=(p,c,op,grp)=>{ if(!p.length) return; const g=new THREE.BufferGeometry();
+      g.setAttribute('position',new THREE.Float32BufferAttribute(p,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(c,3));
+      const m=new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:op,fog:true}); grp.add(new THREE.LineSegments(g,m)); fadeMats.push({m,b:op,link:true}); };
+    mk(sp,sc,.5,G.struct); mk(rp,rc,.14,G.rhiz); }
+
+  /* fields (flat wedge + translucent column) + sector name anchors — in a positioned subgroup */
+  const flatG=new THREE.Group(); flatG.position.set(ox,0,oz); G.flat.add(flatG);
+  const colG=new THREE.Group();  colG.position.set(ox,0,oz);  G.col.add(colG);
+  for(const [fname,fi] of fieldIndex){ const s=secOf(fi); const a0=angleOf(fi,K)+SEC_PAD,a1=angleOf(fi+1,K)-SEC_PAD,mid=(a0+a1)/2;
+    const tintHex=new THREE.Color(s[0]), ringHex=new THREE.Color(s[1]).getHex();
+    const gg=new THREE.ShapeGeometry(wedge(a0,a1),28);gg.rotateX(-Math.PI/2);gg.translate(0,0.01,0);
+    const fm=new THREE.MeshBasicMaterial({color:tintHex,transparent:true,opacity:0.13,depthWrite:false,side:THREE.DoubleSide,fog:true});
+    flatG.add(new THREE.Mesh(gg,fm)); fadeMats.push({m:fm,b:0.13});
+    { const p0=place(a0,R,0.01),p1=place(a0,R,H*0.92); const em=new THREE.LineBasicMaterial({color:ringHex,transparent:true,opacity:0.12,fog:true});
+      flatG.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([p0,p1]),em)); fadeMats.push({m:em,b:0.12}); }
+    const geo=new THREE.ExtrudeGeometry(wedge(a0,a1),{depth:H,bevelEnabled:false,steps:6,curveSegments:28});
+    geo.rotateX(-Math.PI/2);geo.translate(0,0.012,0); const pos=geo.attributes.position,col=new Float32Array(pos.count*4);
+    for(let v=0;v<pos.count;v++){const xx=pos.getX(v),yy=pos.getY(v),zz=pos.getZ(v),t=clamp01(yy/H);
+      const top=1-smooth(0.62,1,t),bot=0.45+0.55*smooth(0,0.22,t),rad=0.78+0.22*(1-Math.min(1,Math.hypot(xx,zz)/R));
+      col[v*4]=1;col[v*4+1]=1;col[v*4+2]=1;col[v*4+3]=top*bot*rad;}
+    geo.setAttribute('color',new THREE.BufferAttribute(col,4));
+    const cm=new THREE.MeshBasicMaterial({color:new THREE.Color(lighten(s[0],0.34)),vertexColors:true,transparent:true,opacity:0.12,side:THREE.BackSide,depthWrite:false,blending:THREE.NormalBlending,fog:true});
+    const mesh=new THREE.Mesh(geo,cm); mesh.renderOrder=-2;colG.add(mesh); fadeMats.push({m:cm,b:0.12});
+    edgeFade(place(a0,R,0.012),place(a0,R,H),s[1],colG); edgeFade(place(a1,R,0.012),place(a1,R,H),s[1],colG);
+    const top=[];for(let k=0;k<=28;k++)top.push(place(a0+(a1-a0)*k/28,R,0.014));
+    const tm=new THREE.LineBasicMaterial({color:new THREE.Color(s[1]),transparent:true,opacity:0.26,fog:true});
+    const al=new THREE.Line(new THREE.BufferGeometry().setFromPoints(top),tm);al.renderOrder=-1;colG.add(al); fadeMats.push({m:tm,b:0.26});
+    const el=document.createElement('div');el.className='slabel';el.textContent=fname;el.style.color=s[1];labelsEl.appendChild(el);
+    sectorLabels.push({el,anchor:place(mid,R+0.7,H*0.5).add(new THREE.Vector3(ox,0,oz))});
+  }
+  /* ground circle (both modes) */
+  { const pts=[];for(let i=0;i<=120;i++){const a=i/120*Math.PI*2;pts.push(new THREE.Vector3(Math.cos(a)*R,0.006,Math.sin(a)*R));}
+    const m1=new THREE.LineBasicMaterial({color:0xcabfa8,transparent:true,opacity:.55,fog:true});
+    const m2=new THREE.LineBasicMaterial({color:0xcabfa8,transparent:true,opacity:.55,fog:true});
+    flatG.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),m1));
+    colG.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),m2));
+    fadeMats.push({m:m1,b:.55},{m:m2,b:.55}); }
+
+  /* zoom-out LOD silhouette (a translucent green 🌳 over this tree) */
+  const sil=new THREE.Sprite(new THREE.SpriteMaterial({map:treeSilTex(),transparent:true,depthWrite:false,fog:false,opacity:0}));
+  sil.position.set(ox,H*0.50,oz); sil.scale.set(2*R*0.80, H*1.26, 1); sil.userData.sil=true; tree.sil=sil; G.sil.add(sil);
+  /* 🌸/🍎 markers on the zoom-out icon — ONLY when this tree has flower/apple nodes, so a bloomed/fruited tree
+     reads differently from a bare one. They fade in with the silhouette (see LOD loop). */
+  tree.silMarks=[];
+  const silMark=(dx,dy,tint,ring,sz)=>{ const m=new THREE.Sprite(new THREE.SpriteMaterial({map:dotTex(tint,ring),transparent:true,depthWrite:false,fog:false,opacity:0}));
+    m.position.set(ox+dx,dy,oz); m.scale.set(sz,sz,1); m.userData.sil=true; G.sil.add(m); tree.silMarks.push(m); };
+  if(notes.some(n=>n.type==='apple'))  silMark( R*0.26, H*1.02, '#e0564b','#7a2018', 1.5);   // 🍎 fruit
+  if(notes.some(n=>n.type==='flower')) silMark(-R*0.28, H*0.90, '#e0489a','#8a2560', 1.5);   // 🌸 flower
+
+  /* tree-name label (forest): one per tree, anchored BENEATH the tree so it never overlays the icon */
+  if(FOREST.length>1){ const tl=document.createElement('div'); tl.className='tlabel'; tl.textContent=tree.topic; labelsEl.appendChild(tl);
+    tree.nameLabel={el:tl, anchor:new THREE.Vector3(ox, -2.8, oz)}; }
+
+  for(const n of notes) ALLNOTES.push(n);
+}
+for(const tree of FOREST) buildTree(tree);
+
+/* ---- bridges: the ONLY cross-tree connection (a manual middle file that explains the link) ---- */
+function repOf(tree){ return tree.notes.find(n=>n.type==='trunk')||tree.notes.find(n=>n.type==='root')||tree.notes[0]||null; }
+const BRIDGES_BUILT=[];
+function buildBridges(){
+  for(const def of BRIDGE_DEFS){
+    const A=FOREST.find(t=>t.id===def.from), B=FOREST.find(t=>t.id===def.to); if(!A||!B||A===B) continue;
+    const pA=(def.fromNote&&A.byId.get(def.fromNote))?A.byId.get(def.fromNote).pos.clone():new THREE.Vector3(A.origin.x,H*0.5,A.origin.z);
+    const pB=(def.toNote&&B.byId.get(def.toNote))?B.byId.get(def.toNote).pos.clone():new THREE.Vector3(B.origin.x,H*0.5,B.origin.z);
+    const mid=pA.clone().add(pB).multiplyScalar(0.5); mid.y=Math.max(pA.y,pB.y)+1.6;     // arch the bridge up
+    const arc=[]; for(let i=0;i<=24;i++){ const u=i/24; const p=new THREE.Vector3().lerpVectors(pA,pB,u); p.y+=Math.sin(u*Math.PI)*1.6; arc.push(p); }
+    const m=new THREE.LineBasicMaterial({color:new THREE.Color(BRIDGE_COL),transparent:true,opacity:0.6,fog:true});
+    G.bridge.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(arc),m));
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:bridgeTex(),transparent:true,depthWrite:false,fog:true}));
+    sp.position.copy(mid); sp.scale.set(0.95,0.95,1);
+    const br={...def, _a:A, _b:B, title:def.title||(A.topic+' ⇄ '+B.topic), explain:def.explain||''};
+    sp.userData={bridge:br}; br._sp=sp; G.bridge.add(sp); BRIDGES_BUILT.push(br);
+  }
+}
+buildBridges();
+
+/* flower / apple markers (forest-wide) */
+const aEls=ALLNOTES.filter(n=>n.type==='flower'||n.type==='apple').map(n=>{const el=document.createElement('div');el.className='alabel';
+  el.style.color=ROLE[n.type].ring;el.innerHTML='<span class="ad"></span>'+(n.type==='flower'?'AHA':'OUTPUT');
+  el.querySelector('.ad').style.background=ROLE[n.type].glow||ROLE[n.type].tint;labelsEl.appendChild(el);return {el,n};});
+
+/* node labels pool */
+const pool=[]; for(let i=0;i<28;i++){const el=document.createElement('div');el.className='lblnode';
+  el.innerHTML='<div class="nt"></div><div class="nd"></div>';labelsEl.appendChild(el);
+  pool.push({el,nt:el.querySelector('.nt'),nd:el.querySelector('.nd'),node:null,op:0,target:0,tier:1,curId:null,sx:0,sy:0,sel:false});}
+const active=new Map(); const free=()=>pool.find(p=>p.node===null);
+
+/* selection ring (billboard) */
+const selRing=new THREE.Sprite(new THREE.SpriteMaterial({map:ringTex(),transparent:true,depthWrite:false,fog:true,opacity:0}));
+selRing.visible=false; G.sel.add(selRing); let selected=null;
+
+/* click → note card */
+const noteCard=document.getElementById('noteCard');
+function chip(id,tree){ const b=tree?tree.byId.get(id):null; const c=document.createElement('span'); c.className='chip'; c.textContent=b?b.title:id; if(b) c.addEventListener('click',()=>selectNode(b)); return c; }
+function showCard(n){
+  noteCard.classList.remove('bridge');
+  const tag=document.getElementById('ntag'), tree=n.tree;
+  tag.textContent=(n.field!=null?n.field:(n.type==='root'?'Root':'Trunk'))+' · '+n.type+(FOREST.length>1?(' · '+tree.topic):'');
+  const tagCol=n.fi>=0?secOf(n.fi)[1]:ROLE[n.type].ring;
+  tag.style.color=theme==='dark'?lightHex(tagCol,0.45):tagCol;   // dark ring hues are too dim on the card
+  document.getElementById('ntitle').textContent=n.title;
+  document.getElementById('ndesc').textContent=n.desc||'';
+  const wrap=document.getElementById('nlinks'); wrap.textContent='';
+  if(n.views&&n.views.length){
+    const vh=document.createElement('div'); vh.className='nsec'; vh.textContent='👁 Stakeholder views ('+n.views.length+')'; wrap.appendChild(vh);
+    n.views.forEach(v=>{ const ch=v.c||v.chair||'', tk=v.t||v.take||''; if(!ch&&!tk) return;
+      const row=document.createElement('div'); row.className='view'; if(lensChair) row.classList.add(ch===lensChair?'on':'off');
+      const b=document.createElement('span'); b.className='vchair'; b.textContent=ch+': '; row.appendChild(b);
+      row.appendChild(document.createTextNode(tk)); wrap.appendChild(row); });
+  }
+  const sec=(label,ids)=>{ const h=document.createElement('div'); h.className='nsec'; h.textContent=label; wrap.appendChild(h);
+    if(!ids.length){ const e=document.createElement('span'); e.className='none'; e.textContent='— none —'; wrap.appendChild(e); return; }
+    ids.forEach(id=>wrap.appendChild(chip(id,tree))); };
+  sec('Links to →', (n.links||[]).filter(id=>tree.byId.has(id)));
+  sec('← Linked from', tree.incoming.get(n.id)||[]);
+  noteCard.classList.add('show');
+  // T4 seam — fire AFTER the card is (re)built so add-ons can append UI (also re-appends after a lens re-render)
+  if(typeof window!=='undefined' && window.__eveOnSelect) try{ window.__eveOnSelect(n); }catch(e){}
+}
+function showBridge(br){ selectNode(null);
+  noteCard.classList.add('bridge');
+  const tag=document.getElementById('ntag'); tag.textContent='⇄ Bridge'; tag.style.color=theme==='dark'?lightHex(BRIDGE_COL,0.45):BRIDGE_COL;
+  document.getElementById('ntitle').textContent=br.title;
+  document.getElementById('ndesc').textContent=br.explain||'A manual link between two trees.';
+  const wrap=document.getElementById('nlinks'); wrap.textContent='';
+  const h=document.createElement('div'); h.className='nsec'; h.textContent='Connects'; wrap.appendChild(h);
+  [br._a,br._b].forEach(t=>{ const c=document.createElement('span'); c.className='chip'; c.textContent='🌳 '+t.topic;
+    const rep=repOf(t); if(rep) c.addEventListener('click',()=>selectNode(rep)); wrap.appendChild(c); });
+  noteCard.classList.add('show');
+}
+function selectNode(n){ selected=n;
+  G.dots.children.forEach(s=>s.scale.setScalar(s.userData.base));
+  if(n){ const sz=n.sp.userData.base; n.sp.scale.setScalar(sz*1.35); selRing.position.copy(n.pos); selRing.scale.set(sz*2.4,sz*2.4,1); selRing.material.opacity=.95; selRing.visible=true; showCard(n); }   // showCard fires the T4 selection hook
+  else { selRing.visible=false; noteCard.classList.remove('show');
+    if(typeof window!=='undefined' && window.__eveOnSelect) try{ window.__eveOnSelect(null); }catch(e){} } }   // T4 seam: deselect still notifies add-ons (fertilizer layer)
+document.getElementById('nclose').addEventListener('click',()=>selectNode(null));
+
+/* state + panel */
+const state={sectors:true,struct:true,rhizome:true,names:true,markers:true,bridges:true,spin:false};
+let mode='flat';
+const CHECKS=[['sectors','Field sectors'],['struct','Trunk & branch links'],['rhizome','Cross-field links'],['names','Field names'],['markers','Ah-ha 🌸 / Output 🍎']];
+if(BRIDGES_BUILT.length) CHECKS.push(['bridges','Cross-tree bridges']);
+CHECKS.push(['spin','Auto-spin (rotate)']);
+const checksEl=document.getElementById('checks');
+for(const [k,label] of CHECKS){const row=document.createElement('label');row.className='row';row.innerHTML=`<input type="checkbox" ${state[k]?'checked':''}> ${label}`;
+  row.querySelector('input').addEventListener('change',e=>{state[k]=e.target.checked;applyState();});checksEl.appendChild(row);}
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function applyState(){ G.flat.visible=state.sectors&&mode==='flat'; G.col.visible=state.sectors&&mode==='column';
+  G.struct.visible=state.struct; G.rhiz.visible=state.rhizome; G.glow.children.forEach(g=>g.visible=state.markers);
+  G.bridge.visible=state.bridges;
+  controls.autoRotate=state.spin; controls.autoRotateSpeed=0.6; }   // auto-spin is an explicit opt-in → honour it even under prefers-reduced-motion
+const seg=document.getElementById('seg');
+seg.querySelectorAll('label').forEach(l=>l.addEventListener('click',()=>{mode=l.dataset.mode;seg.querySelectorAll('label').forEach(x=>x.classList.toggle('on',x===l));applyState();}));
+document.getElementById('topic').textContent=FOREST.length>1?('🌲 Forest · '+FOREST.length+' trees'):('🌳 '+FOREST[0].topic);
+applyState();
+
+/* tree-focus selector (forest only): jump the camera to one tree, or the whole forest */
+if(FOREST.length>1){
+  const ui=document.querySelector('.ui'), credit=ui.querySelector('.credit');
+  const grp=document.createElement('div'); grp.className='grp';
+  const lbl=document.createElement('div'); lbl.className='lbl'; lbl.textContent='Focus tree'; grp.appendChild(lbl);
+  const sel=document.createElement('select'); sel.className='treesel';
+  const o0=document.createElement('option'); o0.value='-1'; o0.textContent='🌲 Whole forest'; sel.appendChild(o0);
+  FOREST.forEach((t,i)=>{ const o=document.createElement('option'); o.value=String(i); o.textContent='🌳 '+t.topic; sel.appendChild(o); });
+  grp.appendChild(sel); ui.insertBefore(grp,credit);
+  sel.addEventListener('change',()=>{ const i=+sel.value; if(i<0){ fit(); flyHome(); } else focusTree(FOREST[i]); });
+}
+
+/* ===== Chair lens — stakeholder overlay (reads `views`; changes nothing structural).
+   Forest-wide: unions every tree's cast + the chairs actually used. */
+const chairOf=v=>v.c||v.chair||'';
+const viewChairs=n=>(n.views||[]).map(chairOf).filter(Boolean);
+let lensChair=null;
+(function chairLens(){
+  const declaredCast=[...new Set(FOREST.flatMap(t=>t.cast||[]))];
+  const cast=[...new Set([...declaredCast, ...ALLNOTES.flatMap(viewChairs)])];
+  if(!cast.length) return;
+  const viewDots=ALLNOTES.filter(n=>(n.views||[]).length);
+  const ui=document.querySelector('.ui'), credit=ui.querySelector('.credit');
+  const grp=document.createElement('div'); grp.className='grp';
+  const lbl=document.createElement('div'); lbl.className='lbl'; lbl.textContent='Stakeholder lens'; grp.appendChild(lbl);
+  const hint=document.createElement('div'); hint.className='lenshint';
+  hint.textContent='Sit in one chair: ideas that chair has no view on dim away, so you sweep the tree through one perspective.'; grp.appendChild(hint);
+  const sel=document.createElement('select'); sel.className='lenssel';
+  const opt0=document.createElement('option'); opt0.value=''; opt0.textContent='— off (all chairs) —'; sel.appendChild(opt0);
+  cast.forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });
+  grp.appendChild(sel);
+  const mirror=document.createElement('div'); mirror.className='mirror'; grp.appendChild(mirror);
+  ui.insertBefore(grp, credit);
+  const rows=()=>{ const M=viewDots.length||1;
+    return cast.map(c=>{ const k=viewDots.filter(n=>viewChairs(n).includes(c)).length; return {c,k,pct:Math.round(100*k/M)}; })
+      .sort((a,b)=>b.k-a.k||(a.c<b.c?-1:1)); };
+  function renderMirror(){ mirror.textContent=''; const M=viewDots.length;
+    const cap=document.createElement('div'); cap.className='mcap';
+    if(lensChair){ const r=rows().find(x=>x.c===lensChair); cap.textContent=lensChair+' · '+r.k+'/'+M+' dots ('+r.pct+'%)'; }
+    else cap.textContent='chair-mirror · '+M+' dot'+(M===1?'':'s')+' with views';
+    mirror.appendChild(cap);
+    rows().forEach(r=>{ const row=document.createElement('div'); row.className='mrow'+(r.c===lensChair?' on':'');
+      row.setAttribute('role','button'); row.tabIndex=0; row.setAttribute('aria-label','Stakeholder lens: '+r.c+' ('+r.pct+'%)');
+      const nm=document.createElement('span'); nm.className='mname'; nm.textContent=r.c;
+      const bar=document.createElement('span'); bar.className='mbar'; const fill=document.createElement('i'); fill.style.width=r.pct+'%'; bar.appendChild(fill);
+      const pc=document.createElement('span'); pc.className='mpct'; pc.textContent=r.pct+'%';
+      row.appendChild(nm); row.appendChild(bar); row.appendChild(pc);
+      const toggle=()=>{ sel.value=(lensChair===r.c)?'':r.c; sel.dispatchEvent(new Event('change')); };
+      row.addEventListener('click',toggle);
+      row.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); } });
+      mirror.appendChild(row); }); }
+  function applyLens(){
+    for(const n of ALLNOTES){ const match=!lensChair||n===selected||viewChairs(n).includes(lensChair);
+      n._lens=match?1:0.10; n._lensG=match?0.9:0.05; }
+    renderMirror(); if(selected) showCard(selected); }
+  sel.addEventListener('change',()=>{ lensChair=sel.value||null; applyLens(); });
+  renderMirror();
+})();
+
+/* FRAMING: frame the whole FOREST. Distance is derived from the forest's bounding
+   sphere + the camera FOV (so it auto-fits any number of trees AND any aspect ratio),
+   keeping the proven 3/4 down viewing angle. */
+function forestBounds(){ let minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity;
+  for(const t of FOREST){ minX=Math.min(minX,t.origin.x-R); maxX=Math.max(maxX,t.origin.x+R);
+    minZ=Math.min(minZ,t.origin.z-R); maxZ=Math.max(maxZ,t.origin.z+R); }
+  return {cx:(minX+maxX)/2, cz:(minZ+maxZ)/2}; }
+function fit(){
+  const b=forestBounds(); const C=new THREE.Vector3(b.cx, H*0.46, b.cz);
+  let Rf=R; for(const t of FOREST){ Rf=Math.max(Rf, Math.hypot(t.origin.x-b.cx, t.origin.z-b.cz)+R); }
+  const Rbound=Math.hypot(Rf, H*0.52);
+  const vfov=THREE.MathUtils.degToRad(camera.fov), aspect=camera.aspect||1;
+  const hfov=2*Math.atan(Math.tan(vfov/2)*aspect);
+  const dist=1.70*Math.max(Rbound/Math.sin(vfov/2), Rbound/Math.sin(hfov/2));   // 1.70 keeps the original single-tree look
+  const dir=new THREE.Vector3(20,12-H*0.46,20).normalize();                      // proven viewing angle
+  HOME_TGT.copy(C); HOME_POS.copy(C).addScaledVector(dir,dist); D0=dist;
+  controls.maxDistance=Math.max(400, dist*2.8);
+  scene.fog.near=Math.max(1,dist*0.42); scene.fog.far=dist*1.9 + Rf;
+  camera.position.copy(HOME_POS); controls.target.copy(HOME_TGT); controls.update();
+}
+
+/* reset / recenter / focus-one-tree */
+let tween=null; const ease=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+function flyTo(pos,tgt){ if(reduced){camera.position.copy(pos);controls.target.copy(tgt);controls.update();return;}
+  tween={p0:camera.position.clone(),t0:controls.target.clone(),p1:pos.clone(),t1:tgt.clone(),t:performance.now(),dur:640}; }
+function flyHome(){ flyTo(HOME_POS,HOME_TGT); }
+function focusTree(tree){ const C=new THREE.Vector3(tree.origin.x,H*0.46,tree.origin.z);
+  const Rbound=Math.hypot(R,H*0.52), vfov=THREE.MathUtils.degToRad(camera.fov), aspect=camera.aspect||1;
+  const hfov=2*Math.atan(Math.tan(vfov/2)*aspect);
+  const dist=1.70*Math.max(Rbound/Math.sin(vfov/2),Rbound/Math.sin(hfov/2));
+  const dir=new THREE.Vector3(20,12-H*0.46,20).normalize();
+  flyTo(C.clone().addScaledVector(dir,dist), C); }
+document.getElementById('reset').addEventListener('click',flyHome);
+document.getElementById('recenter').addEventListener('click',()=>{fit();flyHome();});
+
+/* ===== THEME toggle (light ↔ dark 'diamonds') — re-textures dots + re-themes scene/panel at runtime ===== */
+function applyTheme(name){ theme=THEMES[name]?name:'light'; const T=THEMES[theme]; LINK_MUL=T.linkMul;
+  scene.background.set(T.bg); scene.fog.color.set(T.fog);
+  document.querySelector('.root').classList.toggle('dark', T.dark);
+  for(const n of ALLNOTES){ if(n.sp){ const u=n.sp.userData;
+      n.sp.material.map = T.dark ? diamondTex(u.tint) : dotTex(u.tint,u.ring);
+      n.sp.material.blending = T.dark ? THREE.AdditiveBlending : THREE.NormalBlending;
+      n.sp.material.needsUpdate=true; }
+    if(n.gs){ n.gs.material.blending = T.dark ? THREE.AdditiveBlending : THREE.NormalBlending; n.gs.material.needsUpdate=true; } }
+  const b=document.getElementById('themebtn'); if(b) b.textContent = T.dark ? '☀️ Light' : '🌙 Dark'; }
+document.getElementById('themebtn').addEventListener('click',()=>applyTheme(theme==='dark'?'light':'dark'));
+applyTheme(theme);
+
+/* picking — dots + bridge nodes */
+const ray=new THREE.Raycaster(),m=new THREE.Vector2();let down=null;
+canvas.addEventListener('pointerdown',e=>{if(e.button===0)down={x:e.clientX,y:e.clientY,t:performance.now()};});
+canvas.addEventListener('pointerup',e=>{ if(e.button!==0||!down)return; const moved=Math.hypot(e.clientX-down.x,e.clientY-down.y),dt=performance.now()-down.t;down=null;
+  if(moved>5||dt>500)return; const r=canvas.getBoundingClientRect(); m.x=((e.clientX-r.left)/r.width)*2-1; m.y=-((e.clientY-r.top)/r.height)*2+1;
+  ray.setFromCamera(m,camera);
+  const targets=[...G.dots.children]; if(G.bridge.visible) for(const c of G.bridge.children) if(c.isSprite) targets.push(c);
+  const hit=ray.intersectObjects(targets,false)[0];
+  if(!hit){ selectNode(null); return; }
+  if(hit.object.userData.bridge) showBridge(hit.object.userData.bridge);
+  else selectNode(hit.object.userData.n); });
+canvas.addEventListener('contextmenu',e=>e.preventDefault());   // suppress menu so two-finger-click drag pans (no reset)
+
+/* labels each frame */
+const _v=new THREE.Vector3(),_fr=new THREE.Frustum(),_mm=new THREE.Matrix4(); let titleOn=false,descOn=false; let lodT=0;
+function updateLabels(){ const W=innerWidth,Hh=innerHeight; camera.updateMatrixWorld();
+  const detail=1-lodT;
+  /* STANDARD ZOOM BANDS (% of the fit distance D0):
+     >=115%  tree ICON mode (green silhouette; topic name beneath the tree)
+     70-115% constellation (dots + fields + markers; NO note titles)
+     <70%    note TITLES fade in          <42%  titles + DESCRIPTIONS */
+  const d=camera.position.distanceTo(controls.target); const tOn=0.70*D0,dOn=0.42*D0,bnd=0.04*D0;
+  titleOn=d<(titleOn?tOn+bnd:tOn-bnd); descOn=d<(descOn?dOn+bnd:dOn-bnd);
+  _mm.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse); _fr.setFromProjectionMatrix(_mm);
+  const tProg=clamp01((tOn-d)/(tOn-dOn));
+  /* tree-name labels (forest): ICON-MODE ONLY — fade in with the silhouette, anchored BENEATH the tree */
+  for(const t of FOREST){ if(!t.nameLabel)continue; const a=t.nameLabel.anchor; _v.copy(a).project(camera);
+    const on=_v.x>=-1.05&&_v.x<=1.05&&_v.y>=-1.05&&_v.y<=1.05&&_v.z<1;
+    const op = on ? lodT : 0;   // 0 at working zooms; grows only as the tree folds into its icon
+    t.nameLabel.el.style.opacity=op.toFixed(3);
+    t.nameLabel.el.style.transform=`translate3d(${Math.round((_v.x*.5+.5)*W)}px,${Math.round((-_v.y*.5+.5)*Hh)}px,0) translate(-50%,0)`; }
+  for(const sl of sectorLabels){ const a=sl.anchor; if(!state.sectors||!state.names||detail<0.05){sl.el.style.opacity=0;continue;}
+    _v.copy(a).project(camera); const on=_v.x>=-1.05&&_v.x<=1.05&&_v.y>=-1.05&&_v.y<=1.05&&_v.z<1; if(!on){sl.el.style.opacity=0;continue;}
+    sl.el.style.opacity=((1-0.9*tProg)*detail).toFixed(3); sl.el.style.transform=`translate3d(${Math.round((_v.x*.5+.5)*W)}px,${Math.round((-_v.y*.5+.5)*Hh)}px,0) translate(-50%,-50%)`; }
+  for(const a of aEls){ if(!state.markers||detail<0.05){a.el.style.opacity=0;continue;} _v.copy(a.n.pos).project(camera);
+    const on=_v.x>=-1&&_v.x<=1&&_v.y>=-1&&_v.y<=1&&_v.z<1; if(!on){a.el.style.opacity=0;continue;}
+    a.el.style.opacity=(0.92*detail).toFixed(3); a.el.style.transform=`translate3d(${Math.round((_v.x*.5+.5)*W)}px,${Math.round((-_v.y*.5+.5)*Hh)}px,0) translate(-50%,-160%)`; }
+  const cands=[];
+  if(detail>=0.05) for(const n of ALLNOTES){ const sel=n===selected; if(!sel&&!titleOn)continue; if(n.type==='root'&&!sel)continue;
+    if(!_fr.containsPoint(n.pos))continue; const dist=camera.position.distanceTo(n.pos); if(!sel&&dist>1.10*D0)continue;
+    const op=(sel?1:smooth(0.95*D0,0.50*D0,dist))*detail; if(!sel&&op<0.02)continue; _v.copy(n.pos).project(camera);
+    cands.push({n,sx:(_v.x*.5+.5)*W,sy:(-_v.y*.5+.5)*Hh,op,tier:sel?2:(descOn?2:1),score:dist-(IMPORTANCE[n.type]||0)*D0*0.18-(sel?1e6:0),sel}); }
+  cands.sort((a,b)=>a.score-b.score);
+  const chosen=[];let titles=0,descs=0;
+  for(const c of cands){ if(!c.sel){ if(titles>=18)break; let clash=false; for(const o of chosen){const dx=o.sx-c.sx,dy=o.sy-c.sy;if(dx*dx+dy*dy<900){clash=true;break;}} if(clash)continue; }
+    if(c.tier===2&&!c.sel){ if(descs>=8)c.tier=1; else descs++; } chosen.push(c); if(!c.sel)titles++; }
+  const live=new Set();
+  for(const c of chosen){ let p=active.get(c.n.id+'@'+c.n.tree.id); if(!p){const f=free();if(!f)continue;p=f;p.node=c.n;p.op=0;p.curId=null;active.set(c.n.id+'@'+c.n.tree.id,p);} live.add(c.n.id+'@'+c.n.tree.id);
+    const key=c.n.id+'@'+c.n.tree.id;
+    if(p.curId!==key){ const col=c.n.fi>=0?secOf(c.n.fi)[0]:ROLE[c.n.type].ring; p.nt.innerHTML='<span class="fd" style="background:'+col+'"></span>'+c.n.title; p.nd.textContent=c.n.desc||''; p.curId=key; }
+    p.target=c.op;p.tier=c.tier;p.sel=c.sel;p.sx=Math.round(c.sx+10);p.sy=Math.round(c.sy-7); }
+  for(const p of pool) if(p.node&&!live.has(p.node.id+'@'+p.node.tree.id)) p.target=0;
+  const lp=reduced?1:0.18;
+  for(const p of pool){ if(!p.node&&p.op<=0.001)continue; p.op+=(p.target-p.op)*lp;
+    if(p.target===0&&p.op<0.02){p.op=0;p.el.style.opacity='0';if(p.node){active.delete(p.node.id+'@'+p.node.tree.id);p.node=null;}continue;}
+    p.el.style.opacity=p.op.toFixed(3); p.el.style.transform=`translate3d(${p.sx}px,${p.sy}px,0)`;
+    p.el.classList.toggle('sel',!!p.sel); p.nd.classList.toggle('show',p.tier===2); }
+}
+
+/* resize: update aspect + size only (keep the user's current view); re-fit only at init/recenter */
+function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix(); } // setSize MUST update canvas CSS size, else GL overflows by dpr and desyncs from DOM labels
+addEventListener('resize',resize); resize(); fit();
+
+window.__t={camera,controls,scene,renderer,canvas,fit,flyHome,focusTree,selectNode,
+  FOREST,ALLNOTES,BRIDGES:BRIDGES_BUILT,G,lod:()=>lodT,D0:()=>D0,
+  fertilizer:(typeof FERTILIZER!=='undefined'?FERTILIZER:null)};   // T4 seam: optional fertilizer config for the add-on
+
+(function loop(){ requestAnimationFrame(loop);
+  if(tween){ const k=Math.min(1,(performance.now()-tween.t)/tween.dur),e=ease(k);
+    camera.position.lerpVectors(tween.p0,tween.p1,e); controls.target.lerpVectors(tween.t0,tween.t1,e); if(k>=1)tween=null; }
+  controls.update();
+  /* LOD crossfade: dots/wedges/links fade out, green silhouettes fade in (and back) */
+  const d=camera.position.distanceTo(controls.target);
+  lodT=smooth(LOD_START*D0, LOD_END*D0, d); const detail=1-lodT;
+  const glowMul = theme==='dark'?1.4:1;
+  for(const n of ALLNOTES){ /* chair-lens dim floor is theme-aware: additive diamonds vanish at 0.10 on black */
+    const lens=(n._lens??1)<1?(theme==='dark'?0.22:0.10):(n._lens??1);
+    const lensG=(n._lensG??0.9)<0.9?(theme==='dark'?0.12:0.05):(n._lensG??0.9);
+    if(n.sp) n.sp.material.opacity=lens*detail; if(n.gs) n.gs.material.opacity=lensG*detail*glowMul; }
+  for(const t of FOREST){ if(t.sil) t.sil.material.opacity=lodT*SIL_OPACITY; if(t.silMarks) for(const m of t.silMarks) m.material.opacity=lodT; }
+  for(const fm of fadeMats) fm.m.opacity=fm.b*detail*(fm.link?LINK_MUL:1);
+  if(selected){ selRing.position.copy(selected.pos); selRing.material.opacity=0.95*detail; }
+  updateLabels(); renderer.render(scene,camera);
+})();
+</script>
+</body>
+</html>
