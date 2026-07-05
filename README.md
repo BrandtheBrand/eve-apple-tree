@@ -6,9 +6,11 @@ Eve's Apple Tree is a thinking system with AI. This plugin is one half of it: it
 
 Eve's tree team tends the tree with you. It proposes leaves and trunk connections; you decide what to keep. It never creates your ah-ha moments or your outputs, and it writes nothing to your vault without your approval.
 
-![The tree of light in dark mode — a warm constellation of ideas with glowing ah-ha and output markers](img/hero-dark.png)
+**The one key to know:** the tree draws only notes that carry [tree frontmatter](#how-it-works--frontmatter-drives-the-tree), three small lines at the top of a note. No frontmatter, no dot. The **[user manual](MANUAL.md)** walks all three start paths (new to Obsidian · fresh vault · your existing vault) step by step.
 
-*The tree of light: your notes as a constellation you can fly around. Ah-ha moments and outputs glow.*
+![A forest of thinking trees at night: dozens of trees made of glowing dots on a dark plain](img/hero.png)
+
+*A thinking forest. Every tree is one topic; every light is one idea.*
 
 ---
 

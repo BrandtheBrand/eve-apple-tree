@@ -1,5 +1,7 @@
 # 🍎 Start here
 
+> **The one key:** a note appears on the tree only when it carries tree frontmatter (the three lines at the top, between `---` fences). Every note in My First Tree already has it; the `templates/` folder gives it to your own notes.
+
 Welcome. This is a little garden for your thinking, not a filing cabinet for notes.
 
 Most note apps ask you to sort things into folders and then watch them sit there, flat. This one treats every note as a **dot on a living tree**: ideas are leaves, the links between them are branches, a breakthrough is a flower, and something you finish and share is an apple. As you think, the tree grows **taller** (over time) and **wider** (across the different lenses you think with) — and you can fly around it in 3D.
