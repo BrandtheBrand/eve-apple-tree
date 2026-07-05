@@ -1,8 +1,8 @@
-# agents/ — the AI thinking companion (1 skill + 2 subagents)
+# agents/ — Eve's tree team (AI companion kit): 1 skill + 2 subagents
 
-The AI half of the Eve Apple Tree Thinking System. The plugin/renderer lets you SEE your tree; this kit gives you the **Gardener** that grows it with you.
+The AI half of the Eve Apple Tree Thinking System. The plugin/renderer lets you SEE your tree; this kit is **Eve's tree team** that grows it with you: a **gardener** (the voice you talk to) plus two subagents, a **challenger** and an **observer**. The team proposes; you decide.
 
-> **New here? Skip the manual install.** The [`starter-vault/`](../starter-vault/) already has the Gardener skill, both subagents, and the user-model files placed correctly — just open that folder with Claude Code and say "gardener, let's think." The steps below are for adding the Gardener to a vault of your own.
+> **New here? Skip the manual install.** The [`starter-vault/`](../starter-vault/) already has the gardener skill, both subagents, and the user-model files placed correctly — just open that folder with Claude Code and say "gardener, let's think." The steps below are for adding the team to a vault of your own.
 
 **Design rule: minimum system.** One skill (the Gardener — the only voice you talk to) + two subagents that each must be a separate mind for a structural reason: the **challenger** (its value is blindness to your taste) and the **observer** (studies HOW you think from your feedback, after the session — meta-level attention that can't share the in-flow context). Nothing else.
 

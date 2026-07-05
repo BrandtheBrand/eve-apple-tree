@@ -1,6 +1,6 @@
 # 🍎 Start here
 
-Welcome. This isn't a filing cabinet for notes — it's a little garden for your thinking.
+Welcome. This is a little garden for your thinking, not a filing cabinet for notes.
 
 Most note apps ask you to sort things into folders and then watch them sit there, flat. This one treats every note as a **dot on a living tree**: ideas are leaves, the links between them are branches, a breakthrough is a flower, and something you finish and share is an apple. As you think, the tree grows **taller** (over time) and **wider** (across the different lenses you think with) — and you can fly around it in 3D.
 
@@ -23,16 +23,18 @@ You should see **My First Tree** stand up in 3D. Scroll to zoom in — the dots 
 
 ---
 
-## 2. Meet your gardener
+## 2. Meet the team
 
-The tree is only half of the system. The other half is an AI **Gardener** whose whole job is to make you think more, think wider, and never lose a good idea. It doesn't just answer you — it hands you a question from a lens you skipped, spots where two ideas rhyme, and catches your "oh!" moments before they evaporate.
+The tree is only half of the system. The other half is **Eve's tree team (AI companion kit)**: a **gardener** you think out loud with, a **challenger** that pushes back from the outside, and an **observer** that learns how you think. Their whole job is to make you think more, think wider, and never lose a good idea. The gardener doesn't just answer you. It hands you a question from a lens you skipped, spots where two ideas rhyme, and catches your "oh!" moments before they evaporate.
 
-The Gardener already knows how to behave, because this vault includes its instructions (`CLAUDE.md`) and its skill files (in `.claude/`).
+The team tends the tree *with* you. It proposes leaves and connections; you decide what to keep. It never creates your ah-ha moments or your outputs for you, and it writes nothing to the tree without your say-so.
+
+The team already knows how to behave, because this vault includes its contract (`CLAUDE.md`) and its skill files (in `.claude/`).
 
 - If you use **Claude Code**: open this folder with it and just say *"Gardener, let's think."*
 - If you use any other AI: paste the contents of `CLAUDE.md` in as the system prompt.
 
-Early on, ask it to run the short **DOT-VOICE** exercise — you hand-write a few dots in your own words so it learns to name ideas the way *you* would, not in generic AI voice.
+Early on, ask it to run the short **DOT-VOICE** exercise: you hand-write a few dots in your own words so it learns to name ideas the way *you* would, not in generic AI voice.
 
 ---
 
@@ -40,7 +42,7 @@ Early on, ask it to run the short **DOT-VOICE** exercise — you hand-write a fe
 
 Now the fun part: add your own thought.
 
-You don't have to format anything. Just tell the Gardener a thought — anything you're chewing on right now — and it will turn it into a clean dot, place it on the tree, and propose a link or a question back to you. If you'd rather do it by hand, copy `templates/leaf.md` into a folder and fill in one idea.
+You don't have to format anything. Just tell the gardener a thought, anything you're chewing on right now, and it turns it into a clean dot and proposes a link or a question back to you. You approve what goes on the tree. If you'd rather do it all by hand, copy `templates/leaf.md` into a folder and fill in one idea; no AI required.
 
 A good first dot is small and honest. One idea, titled as a short **handle** or even a raw **question** — not a finished conclusion. (Look at the dots in **My First Tree** for the feel of it.)
 
@@ -52,7 +54,7 @@ Then open the tree again and watch your dot appear. Come back tomorrow with anot
 
 - **`My First Tree/`** — the example dots, in the exact format your own notes should take.
 - **`templates/`** — the note shapes: leaf, trunk, root, flower, apple, field.
-- **`prompts/`** — ready-to-paste moves for your Gardener (inspire, extend, capture an ah-ha, harvest, weekly tend).
-- **`CLAUDE.md`** — the full contract that turns any capable AI into your Gardener.
+- **`prompts/`** — ready-to-paste moves for the gardener (inspire, extend, capture an ah-ha, harvest, weekly tend).
+- **`CLAUDE.md`** — the full contract that any capable AI reads to join as your gardener.
 
 Welcome to the garden. Plant something small today.

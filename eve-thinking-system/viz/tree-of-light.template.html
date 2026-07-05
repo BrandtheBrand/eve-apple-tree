@@ -300,9 +300,15 @@ function dotTex(tint,ring){const k=tint+ring;if(texc[k])return texc[k];const S=1
   const g=x.createRadialGradient(80,80,8,80,80,78);g.addColorStop(0,hexA(tint,.22));g.addColorStop(1,hexA(tint,0));x.fillStyle=g;x.beginPath();x.arc(80,80,78,0,7);x.fill();
   x.fillStyle=hexA(tint,.96);x.beginPath();x.arc(80,80,30,0,7);x.fill();x.lineWidth=5;x.strokeStyle=hexA(ring,.95);x.beginPath();x.arc(80,80,30,0,7);x.stroke();
   x.fillStyle='#fff';x.beginPath();x.arc(80,80,12,0,7);x.fill();const t=new THREE.CanvasTexture(c);t.anisotropy=4;texc[k]=t;return t;}
-function glowTex(col){const k='g'+col;if(texc[k])return texc[k];const S=200,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');
-  const g=x.createRadialGradient(100,100,4,100,100,100);g.addColorStop(0,hexA(col,.55));g.addColorStop(.4,hexA(col,.18));g.addColorStop(1,hexA(col,0));x.fillStyle=g;x.fillRect(0,0,S,S);
-  const t=new THREE.CanvasTexture(c);texc[k]=t;return t;}
+/* FIX3 — ONE shared soft radial halo (white; tinted per material.color). Multi-stop falloff to full
+   transparency at the canvas edge, so scaling never shows a hard edge, banding, or a square. Additive on
+   dark (glowing gems), normal on light (soft tint, no wash-out). Every dot gets one; accents glow brighter. */
+function haloTex(){ if(texc.halo)return texc.halo; const S=128,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');const M=64;
+  const g=x.createRadialGradient(M,M,0,M,M,M);
+  g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.22,'rgba(255,255,255,0.62)');
+  g.addColorStop(.45,'rgba(255,255,255,0.28)');g.addColorStop(.70,'rgba(255,255,255,0.08)');g.addColorStop(1,'rgba(255,255,255,0)');
+  x.fillStyle=g;x.fillRect(0,0,S,S);
+  const t=new THREE.CanvasTexture(c);t.anisotropy=4;texc.halo=t;return t;}
 const lightHex=(hex,amt)=>'#'+lighten(hex,amt).toString(16).padStart(6,'0');
 /* DARK-MODE dot: a glowing gem — colored halo + white core + a 4/8-point sparkle. With AdditiveBlending
    on the dark background it reads like a little diamond twinkling. (Light mode keeps dotTex.) */
@@ -427,8 +433,12 @@ function buildTree(tree){
     const taper=n.type==='trunk'?1-0.4*n.tNorm:1; const sz=role.r*2*taper;
     const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:dotTex(tint,ring),transparent:true,depthWrite:false,fog:true}));
     sp.position.copy(n.pos); sp.scale.set(sz,sz,1); sp.userData={n,base:sz,tint,ring}; n.sp=sp; n._lens=1; G.dots.add(sp);
-    if(role.glow){const gs=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex(role.glow),transparent:true,depthWrite:false,blending:THREE.NormalBlending,fog:true,opacity:.9}));
-      gs.position.copy(n.pos);const z=role.r*5;gs.scale.set(z,z,1);n.gs=gs;n._lensG=0.9;G.glow.add(gs);} }
+    /* FIX3: EVERY dot gets a soft glow halo — shared texture, tinted per dot. Flower/apple (role.glow)
+       glow brighter (warm hue + a larger sprite, 3.2× vs 2.6×); all others glow in the dot's own colour. */
+    { const accent=!!role.glow, gcol=accent?role.glow:tint;
+      const gs=new THREE.Sprite(new THREE.SpriteMaterial({map:haloTex(),color:new THREE.Color(gcol),transparent:true,depthWrite:false,blending:theme==='dark'?THREE.AdditiveBlending:THREE.NormalBlending,fog:true,opacity:0}));
+      gs.position.copy(n.pos); const gz=sz*(accent?3.2:2.6); gs.scale.set(gz,gz,1); gs.userData.accent=accent;
+      n.gs=gs; n._accent=accent; n._lensG=0.9; G.glow.add(gs); } }
 
   /* links (within this tree only) */
   { const sp=[],sc=[],rp=[],rc=[];
@@ -585,7 +595,9 @@ for(const [k,label] of CHECKS){const row=document.createElement('label');row.cla
   row.querySelector('input').addEventListener('change',e=>{state[k]=e.target.checked;applyState();});checksEl.appendChild(row);}
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function applyState(){ G.flat.visible=state.sectors&&mode==='flat'; G.col.visible=state.sectors&&mode==='column';
-  G.struct.visible=state.struct; G.rhiz.visible=state.rhizome; G.glow.children.forEach(g=>g.visible=state.markers);
+  G.struct.visible=state.struct; G.rhiz.visible=state.rhizome;
+  /* FIX3 parity: every dot glows always (like the plugin); the 🌸/🍎 'markers' toggle now gates only the
+     AHA/OUTPUT labels (see updateLabels), not the glow group — so the glow group stays visible. */
   G.bridge.visible=state.bridges;
   controls.autoRotate=state.spin; controls.autoRotateSpeed=0.6; }   // auto-spin is an explicit opt-in → honour it even under prefers-reduced-motion
 const seg=document.getElementById('seg');
@@ -774,11 +786,13 @@ window.__t={camera,controls,scene,renderer,canvas,fit,flyHome,focusTree,selectNo
   /* LOD crossfade: dots/wedges/links fade out, green silhouettes fade in (and back) */
   const d=camera.position.distanceTo(controls.target);
   lodT=smooth(LOD_START*D0, LOD_END*D0, d); const detail=1-lodT;
-  const glowMul = theme==='dark'?1.4:1;
+  /* FIX3 light-shine: drive EVERY dot's glow — subtle, theme-adaptive, capped so light never washes out and
+     dark stays the showpiece. Accents (flower/apple) glow brighter; chair-lens-dimmed dots drop to a floor. */
+  const gLeaf=theme==='dark'?0.30:0.13, gAcc=theme==='dark'?0.55:0.26, gCap=theme==='dark'?0.95:0.52, gDim=theme==='dark'?0.12:0.05;
   for(const n of ALLNOTES){ /* chair-lens dim floor is theme-aware: additive diamonds vanish at 0.10 on black */
     const lens=(n._lens??1)<1?(theme==='dark'?0.22:0.10):(n._lens??1);
-    const lensG=(n._lensG??0.9)<0.9?(theme==='dark'?0.12:0.05):(n._lensG??0.9);
-    if(n.sp) n.sp.material.opacity=lens*detail; if(n.gs) n.gs.material.opacity=lensG*detail*glowMul; }
+    if(n.sp) n.sp.material.opacity=lens*detail;
+    if(n.gs){ const g=((n._lensG??0.9)<0.9)?gDim:(n._accent?gAcc:gLeaf); n.gs.material.opacity=Math.min(gCap,g*detail); } }
   for(const t of FOREST){ if(t.sil) t.sil.material.opacity=lodT*SIL_OPACITY; if(t.silMarks) for(const m of t.silMarks) m.material.opacity=lodT; }
   for(const fm of fadeMats) fm.m.opacity=fm.b*detail*(fm.link?LINK_MUL:1);
   if(selected){ selRing.position.copy(selected.pos); selRing.material.opacity=0.95*detail; }
