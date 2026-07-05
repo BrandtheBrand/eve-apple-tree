@@ -8,7 +8,7 @@ Eve's tree team tends the tree with you. It proposes leaves and trunk connection
 
 **The one key to know:** the tree draws only notes that carry [tree frontmatter](#how-it-works--frontmatter-drives-the-tree), three small lines at the top of a note. No frontmatter, no dot. The **[user manual](MANUAL.md)** walks all three start paths (new to Obsidian · fresh vault · your existing vault) step by step.
 
-![A forest of thinking trees at night: dozens of trees made of glowing dots on a dark plain](img/hero.png)
+![The plugin's forest view: dozens of trees made of glowing dots on a dark plain, with the control panel open](img/hero.jpg)
 
 *A thinking forest. Every tree is one topic; every light is one idea.*
 
@@ -112,7 +112,7 @@ The starter vault above already has the plugin inside it. To add the plugin to a
 
 Installed the plugin from Community Plugins (or by hand) and want the AI half in your own vault, without opening a new one?
 
-1. Download `eve-tree-team-0.4.0.zip` from the [latest release](https://github.com/BrandtheBrand/eve-apple-tree/releases/latest).
+1. Download the `eve-tree-team` zip from the [latest release](https://github.com/BrandtheBrand/eve-apple-tree/releases/latest).
 2. Copy everything inside `eve-tree-team/` into your vault's root folder, including the hidden `.claude/` folder. Already have a `CLAUDE.md`? Merge by hand instead of overwriting.
 3. Open the vault folder in Claude Code and say *"gardener, let's think."*
 

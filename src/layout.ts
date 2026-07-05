@@ -54,6 +54,9 @@ export interface EveSettings {
   // F1 — user-dragged dot positions, stored in LOCAL coords (relative to the owning tree's origin),
   // keyed by vault path. Stale keys (renamed/deleted notes, or field changes) are dropped at load.
   dotPositions?: Record<string, { x: number; y: number; z: number }>;
+  // F5 — user-dragged tree origins, stored in WORLD coords (x,z; trees sit at y=0), keyed by tree id
+  // (top-level folder name). A tree without an entry keeps its auto row slot (see buildForest).
+  treeOrigins?: Record<string, { x: number; z: number }>;
   // F2 — persisted panel/appearance state (all optional; defaults applied at read time)
   panelCollapsed?: boolean;   // control panel shrunk to a pill
   textSize?: number;          // label text scale multiplier (default 1)
@@ -105,6 +108,8 @@ export interface EveTree {
   sil?: THREE.Sprite;               // zoom-out silhouette
   silMarks?: THREE.Sprite[];        // 🌸/🍎 markers on the zoom-out icon (if the tree has flower/apple)
   nameLabelEl?: HTMLElement;        // tree-name label
+  fieldFlatG?: THREE.Group;         // F5: per-tree wedge (flat) group — repositioned live when the tree is dragged
+  fieldColumnG?: THREE.Group;       // F5: per-tree wedge (column) group — repositioned live when the tree is dragged
 }
 
 /** A manual cross-tree link through a "middle/bridge file" that EXPLAINS the linkage (D4). */

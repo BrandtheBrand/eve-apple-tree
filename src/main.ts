@@ -19,7 +19,7 @@ export default class EveApplePlugin extends Plugin {
     this.addRibbonIcon("sprout", "Open Eve's Apple Tree", () => this.activateView());
 
     this.addCommand({
-      id: "open-eve-apple-tree",
+      id: "open",
       name: "Open the tree of light",
       callback: () => this.activateView(),
     });
@@ -38,7 +38,8 @@ export default class EveApplePlugin extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const data = (await this.loadData()) as Partial<EveSettings> | null;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
     // one-time cleanup: the removed "Tree size" feature left a treeScale key in some saved data
     const bag = this.settings as unknown as Record<string, unknown>;
     if (bag.treeScale !== undefined) { delete bag.treeScale; await this.saveSettings(); }

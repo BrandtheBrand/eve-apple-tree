@@ -1,4 +1,5 @@
 import { App, TFile, Notice } from "obsidian";
+import * as THREE from "three";
 import {
   EveNode, EveEdge, EveTree, EveBridge, EveForest, EveSettings, View, TreeType,
   placeNodes, clusterRelax, insideWedge, TREE_SPAN,
@@ -6,8 +7,17 @@ import {
 
 const TREE_TYPES: TreeType[] = ["root", "trunk", "leaf", "flower", "apple"];
 
+/** Frontmatter values are `unknown` (YAML can hand back almost anything); only stringify primitives
+ *  so a stray object/array in a note's frontmatter degrades to "" instead of "[object Object]". */
+function safeString(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  return "";
+}
+
 function asTreeType(v: unknown): TreeType {
-  const s = String(v ?? "").toLowerCase().trim();
+  const s = safeString(v).toLowerCase().trim();
   return (TREE_TYPES as string[]).includes(s) ? (s as TreeType) : "leaf";
 }
 
@@ -34,7 +44,7 @@ function firstParagraph(content: string): string {
     const line = raw.trim();
     if (!line) continue;
     if (line.startsWith("#") || line.startsWith("---") || line.startsWith("<!--")) continue;
-    const clean = line.replace(/[*_`>#\[\]]/g, "").trim();
+    const clean = line.replace(/[*_`>#[\]]/g, "").trim();
     if (clean) return clean.length > 160 ? clean.slice(0, 157) + "…" : clean;
   }
   return "";
@@ -47,8 +57,8 @@ function parseFmViews(v: unknown): View[] | undefined {
   for (const it of v) {
     if (it && typeof it === "object") {
       const o = it as Record<string, unknown>;
-      const c = String(o.c ?? o.chair ?? "").trim();
-      const t = String(o.t ?? o.take ?? "").trim();
+      const c = safeString(o.c ?? o.chair).trim();
+      const t = safeString(o.t ?? o.take).trim();
       if (c) out.push({ c, t });
     }
   }
@@ -154,7 +164,7 @@ export async function buildForest(app: App, settings: EveSettings): Promise<EveF
         title: (typeof fm["title"] === "string" && fm["title"]) || file.basename,
         description, treeType, field, fieldName,
         time: parseTime(fm["time"], file.stat.ctime / 86400000),
-        views, tNorm: 0, pos: null as any,
+        views, tNorm: 0, pos: new THREE.Vector3(),   // placeholder — placeNodes() overwrites this before it's ever read
       };
       nodes.push(node); byId.set(file.path, node);
     }
@@ -209,9 +219,16 @@ export async function buildForest(app: App, settings: EveSettings): Promise<EveF
 
   // stable order, then auto-arrange origins in a centred row + offset the BASE local positions to world.
   // Fixed centre-to-centre spacing keeps trees clear of each other; dot/label sizes stay constant.
+  // F5: a tree the user has dragged keeps ITS saved origin instead of the row slot. Trees without a saved
+  // origin keep their auto row slot at their original sorted index — simplest honest rule: moving one tree
+  // doesn't re-pack the row, so a dragged tree can end up overlapping an auto-placed one (documented, not fixed).
   trees.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const savedOrigins = settings.treeOrigins || {};
   trees.forEach((t, i) => {
-    t.origin = { x: (i - (trees.length - 1) / 2) * TREE_SPAN, z: 0 };
+    const saved = savedOrigins[t.id];
+    t.origin = (saved && typeof saved.x === "number" && typeof saved.z === "number")
+      ? { x: saved.x, z: saved.z }
+      : { x: (i - (trees.length - 1) / 2) * TREE_SPAN, z: 0 };
     for (const node of t.nodes) { node.pos.x += t.origin.x; node.pos.z += t.origin.z; }
   });
 

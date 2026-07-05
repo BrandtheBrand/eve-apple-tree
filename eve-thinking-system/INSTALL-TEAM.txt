@@ -1,0 +1,20 @@
+EVE'S TREE TEAM (AI companion kit) — add the team to a vault you already have
+==============================================================================
+
+1. Copy EVERYTHING inside this eve-tree-team/ folder into your vault's ROOT
+   folder (the folder you open in Obsidian). Include the hidden .claude/ folder.
+
+   Already have a CLAUDE.md in your vault? Do NOT overwrite it — open both and
+   merge by hand (this one is the team's operating contract).
+
+2. Open the vault folder in Claude Code and say: gardener, let's think
+   The first session runs a short voice-calibration exercise.
+
+3. No Claude Code? Paste the body of .claude/skills/gardener/SKILL.md into any
+   capable AI as its system prompt. Run the challenger in a separate, fresh
+   conversation (no memory features), and the observer in another.
+
+The templates/ folder holds note templates (root, trunk, leaf, flower, apple,
+field, bridge) if you prefer to grow the tree fully by hand. The team proposes,
+you decide: it never creates your flowers or apples, and writes nothing without
+your approval.

@@ -4,7 +4,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildForest } from "./data";
 import {
   EveNode, EveTree, EveBridge, EveForest, EveSettings, ZoomIcon, ROLE, PALETTE, TreeType,
-  BG, FOG, H, R, R_INNER, SEC_PAD, WEDGE_INSET, R_BAND_MIN, rMaxAt,
+  BG, FOG, H, R, SEC_PAD, WEDGE_INSET, R_BAND_MIN, rMaxAt,
   LOD_START, LOD_END, SIL_OPACITY, SIL_GREEN, BRIDGE_COL,
   angleOf, place, hexA, lighten, lightHex, THEMES,
 } from "./layout";
@@ -12,6 +12,7 @@ import {
 export const VIEW_TYPE_EVE = "eve-apple-tree-view";
 
 const IMPORTANCE: Record<TreeType, number> = { root: 1.0, trunk: 0.8, apple: 0.7, flower: 0.65, leaf: 0.0 };
+const MANUAL_URL = "https://github.com/BrandtheBrand/eve-apple-tree/blob/main/MANUAL.md";
 
 interface LabelSlot {
   el: HTMLElement; t: HTMLElement; d: HTMLElement;
@@ -19,6 +20,11 @@ interface LabelSlot {
   sx: number; sy: number; sel: boolean;
 }
 interface BridgeObj { def: EveBridge; sprite: THREE.Sprite; }
+/** Shape of a dot sprite's userData (set in buildDots) — typed so reads don't fall back to `any`. */
+interface DotUserData { node: EveNode; baseScale: number; tint: string; ring: string; }
+/** The subset of Object3D that carries disposable GL resources (Mesh/Line/Points/Sprite, not the base
+ *  Object3D/Group type) — narrows traverse() callbacks without resorting to `any`. */
+type Disposable3D = THREE.Object3D & { geometry?: THREE.BufferGeometry; material?: THREE.Material | THREE.Material[] };
 
 export class EveTreeView extends ItemView {
   private root!: HTMLElement;
@@ -77,7 +83,10 @@ export class EveTreeView extends ItemView {
   private active = new Map<string, LabelSlot>();
   private sEls: HTMLElement[] = [];
   private aEls: { el: HTMLElement; node: EveNode }[] = [];
+  // F5: stored LOCAL (relative to the owning tree's origin) — world position is derived live in
+  // updateLabels() from the current tree.origin, so a dragged tree's field labels keep following it.
   private sectorAnchor: THREE.Vector3[] = [];
+  private sectorTree: EveTree[] = [];
 
   // interaction
   private preset!: { pos: THREE.Vector3; target: THREE.Vector3 };
@@ -91,6 +100,11 @@ export class EveTreeView extends ItemView {
   private press: { x: number; y: number; t: number; node: EveNode | null; bridge: EveBridge | null } | null = null;
   private drag: { node: EveNode; plane: THREE.Plane; offset: THREE.Vector3; prevSpin: boolean; moved: boolean } | null = null;
   private resetArmed = 0;   // timestamp — "Reset layout" needs a 2nd click within 3s to fire
+  // F5 whole-tree drag: grab the silhouette (far-zoom icon) or a trunk/root anchor, slide on the y=0 ground
+  // plane. Mutually exclusive with `drag` (dot-drag wins the press when both could apply — see onPointerDown).
+  private treeDrag: { tree: EveTree; offset: THREE.Vector3; prevSpin: boolean; moved: boolean } | null = null;
+  private readonly groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  private resetTreeArmed = 0;   // timestamp — "Reset tree layout" needs a 2nd click within 3s to fire
 
   constructor(leaf: WorkspaceLeaf, private settings: EveSettings, private persist: () => Promise<void>) { super(leaf); }
 
@@ -104,7 +118,7 @@ export class EveTreeView extends ItemView {
     // follow Obsidian's theme live (auto-cleaned when the view closes) — unless the user chose manually
     this.registerEvent(this.app.workspace.on("css-change", () => { if (!this.themeManual) this.applyTheme(this.detectObsidianDark()); }));
     // Escape closes the note/bridge card (auto-cleaned on view close)
-    this.registerDomEvent(document, "keydown", (e: KeyboardEvent) => {
+    this.registerDomEvent(this.containerEl.ownerDocument, "keydown", (e: KeyboardEvent) => {
       if (e.key === "Escape" && this.noteCard?.classList.contains("show")) { e.preventDefault(); this.deselect(); }
     });
     // build only once the metadata cache is resolved (fires immediately if the layout is already ready)
@@ -222,7 +236,7 @@ export class EveTreeView extends ItemView {
   /* ---------------- textures ---------------- */
   private dotTexture(tint: string, ring: string): THREE.Texture {
     const key = tint + ring; if (this.texCache[key]) return this.texCache[key];
-    const S = 160, c = document.createElement("canvas"); c.width = c.height = S;
+    const S = 160, c = this.containerEl.ownerDocument.createElement("canvas"); c.width = c.height = S;
     const x = c.getContext("2d")!; const cx = S / 2, cy = S / 2;
     const hg = x.createRadialGradient(cx, cy, 8, cx, cy, 78);
     hg.addColorStop(0, hexA(tint, 0.22)); hg.addColorStop(1, hexA(tint, 0));
@@ -236,7 +250,7 @@ export class EveTreeView extends ItemView {
      on the dark background makes it read like a little diamond twinkling. */
   private diamondTexture(tint: string): THREE.Texture {
     const key = "dia" + tint; if (this.texCache[key]) return this.texCache[key];
-    const S = 160, c = document.createElement("canvas"); c.width = c.height = S;
+    const S = 160, c = this.containerEl.ownerDocument.createElement("canvas"); c.width = c.height = S;
     const x = c.getContext("2d")!; const M = S / 2;
     let g = x.createRadialGradient(M, M, 1, M, M, 74);
     g.addColorStop(0, hexA(tint, 0.9)); g.addColorStop(0.30, hexA(tint, 0.42)); g.addColorStop(1, hexA(tint, 0));
@@ -255,7 +269,7 @@ export class EveTreeView extends ItemView {
      edge, banding, or a square. Additive on dark (glowing gems), normal on light (soft tint, no wash). */
   private haloTexture(): THREE.Texture {
     if (this.texCache["halo"]) return this.texCache["halo"];
-    const S = 128, c = document.createElement("canvas"); c.width = c.height = S;
+    const S = 128, c = this.containerEl.ownerDocument.createElement("canvas"); c.width = c.height = S;
     const x = c.getContext("2d")!, M = S / 2;
     const g = x.createRadialGradient(M, M, 0, M, M, M);
     g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.22, "rgba(255,255,255,0.62)");
@@ -284,7 +298,7 @@ export class EveTreeView extends ItemView {
   }
   private ringTexture(): THREE.Texture {
     if (this.texCache["ring"]) return this.texCache["ring"];
-    const S = 128, c = document.createElement("canvas"); c.width = c.height = S;
+    const S = 128, c = this.containerEl.ownerDocument.createElement("canvas"); c.width = c.height = S;
     const x = c.getContext("2d")!;
     x.lineWidth = 7; x.strokeStyle = "rgba(34,48,58,.9)"; x.beginPath(); x.arc(S / 2, S / 2, S / 2 - 8, 0, 7); x.stroke();
     x.lineWidth = 3; x.strokeStyle = "rgba(255,255,255,.9)"; x.beginPath(); x.arc(S / 2, S / 2, S / 2 - 8, 0, 7); x.stroke();
@@ -296,7 +310,7 @@ export class EveTreeView extends ItemView {
       scale stays correct; the 🌸/🍎 markers get per-shape anchors (SIL_MARK_ANCHOR). */
   private treeSilTexture(kind: ZoomIcon = "round"): THREE.Texture {
     const key = "sil-" + kind; if (this.texCache[key]) return this.texCache[key];
-    const S = 256, c = document.createElement("canvas"); c.width = c.height = S;
+    const S = 256, c = this.containerEl.ownerDocument.createElement("canvas"); c.width = c.height = S;
     const x = c.getContext("2d")!;
     const trunk = (topF: number, wF: number) => { x.fillStyle = hexA("#5b4632", 0.92); x.fillRect(S * (0.5 - wF / 2), S * topF, S * wF, S * (0.97 - topF)); };
     const lobe = (bxF: number, byF: number, brF: number) => {
@@ -349,7 +363,7 @@ export class EveTreeView extends ItemView {
   };
   private bridgeTexture(): THREE.Texture {
     if (this.texCache["bridge"]) return this.texCache["bridge"];
-    const S = 128, c = document.createElement("canvas"); c.width = c.height = S;
+    const S = 128, c = this.containerEl.ownerDocument.createElement("canvas"); c.width = c.height = S;
     const x = c.getContext("2d")!;
     const g = x.createRadialGradient(64, 64, 4, 64, 64, 60);
     g.addColorStop(0, hexA(BRIDGE_COL, 0.95)); g.addColorStop(0.55, hexA(BRIDGE_COL, 0.5)); g.addColorStop(1, hexA(BRIDGE_COL, 0));
@@ -451,6 +465,7 @@ export class EveTreeView extends ItemView {
     const ox = tree.origin.x, oz = tree.origin.z;
     const flatG = new THREE.Group(); flatG.position.set(ox, 0, oz); this.G.fieldFlat.add(flatG);
     const colG = new THREE.Group(); colG.position.set(ox, 0, oz); this.G.fieldColumn.add(colG);
+    tree.fieldFlatG = flatG; tree.fieldColumnG = colG;   // F5: repositioned live by moveTree()
     const COL_STEPS = 6, COL_CURVE = 28;
     for (let i = 0; i < K; i++) {
       const sec = this.secOf(i);
@@ -483,7 +498,8 @@ export class EveTreeView extends ItemView {
       const tm = new THREE.LineBasicMaterial({ color: new THREE.Color(sec.ring), transparent: true, opacity: 0.26, fog: true });
       const al = new THREE.Line(new THREE.BufferGeometry().setFromPoints(top), tm); al.renderOrder = -1; colG.add(al);
       this.fadeMats.push({ m: tm, b: 0.26 });
-      this.sectorAnchor.push(place(mid, RS + 0.7, HS * 0.50).add(new THREE.Vector3(ox, 0, oz)));
+      this.sectorAnchor.push(place(mid, RS + 0.7, HS * 0.50));   // LOCAL — see field comment
+      this.sectorTree.push(tree);
       this.sEls.push(this.mkSectorLabel(tree.fields[i], sec.ring));
     }
     const mkCircle = (g: THREE.Group) => {
@@ -495,12 +511,13 @@ export class EveTreeView extends ItemView {
   }
 
   private mkSectorLabel(name: string, ring: string): HTMLElement {
-    const el = this.labelLayer.createDiv({ cls: "eve-slabel" }); el.setText(name); el.style.color = ring; return el;
+    const el = this.labelLayer.createDiv({ cls: "eve-slabel" }); el.setText(name); el.style.setProperty("--ring", ring); return el;
   }
 
   private buildSilhouette(tree: EveTree) {
     const sil = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.treeSilTexture(this.silIcon), transparent: true, depthWrite: false, fog: false, opacity: 0 }));
     sil.position.set(tree.origin.x, H * 0.50, tree.origin.z); sil.scale.set(2 * R * 0.80, H * 1.26, 1);
+    sil.userData = { tree };   // F5: the silhouette IS the whole-tree grab handle at far-zoom LOD (see pick())
     tree.sil = sil; this.G.sil.add(sil);
     // 🌸/🍎 markers on the zoom-out icon — only when this tree has flower/apple nodes, so a bloomed/
     // fruited tree reads differently from a bare one. They fade in with the silhouette (see loop) and
@@ -572,7 +589,7 @@ export class EveTreeView extends ItemView {
     this.aEls = this.allNodes.filter((n) => n.treeType === "flower" || n.treeType === "apple").map((n) => {
       const el = this.labelLayer.createDiv({ cls: "eve-alabel" }); el.style.color = ROLE[n.treeType].ring;
       const ad = el.createSpan({ cls: "ad" }); ad.style.background = ROLE[n.treeType].glow || ROLE[n.treeType].tint;
-      el.appendChild(document.createTextNode(n.treeType === "flower" ? "AHA" : "OUTPUT"));
+      el.appendChild(this.containerEl.ownerDocument.createTextNode(n.treeType === "flower" ? "AHA" : "OUTPUT"));
       return { el, node: n };
     });
   }
@@ -610,21 +627,21 @@ export class EveTreeView extends ItemView {
     // field names — fade as titles take over AND as silhouettes appear
     const titleProgress = this.clamp01((tOn - d) / (tOn - dOn));
     this.sEls.forEach((e, i) => {
-      const a = this.sectorAnchor[i];
-      if (!a || !this.fieldLabelsOn || detail < 0.05) { e.style.opacity = "0"; return; }
-      this._v.copy(a).project(cam);
+      const a = this.sectorAnchor[i], t = this.sectorTree[i];
+      if (!a || !t || !this.fieldLabelsOn || detail < 0.05) { e.style.removeProperty("opacity"); return; }
+      this._v.set(a.x + t.origin.x, a.y, a.z + t.origin.z).project(cam);
       const on = this._v.x >= -1.05 && this._v.x <= 1.05 && this._v.y >= -1.05 && this._v.y <= 1.05 && this._v.z < 1;
-      if (!on) { e.style.opacity = "0"; return; }
+      if (!on) { e.style.removeProperty("opacity"); return; }
       e.style.opacity = ((1 - 0.9 * titleProgress) * detail).toFixed(3);
       e.style.transform = `translate3d(${Math.round((this._v.x * .5 + .5) * W)}px,${Math.round((-this._v.y * .5 + .5) * Hh)}px,0) translate(-50%,-50%)`;
     });
 
     // flower / apple markers
     this.aEls.forEach((a) => {
-      if (!this.accentLabelsOn || detail < 0.05) { a.el.style.opacity = "0"; return; }
+      if (!this.accentLabelsOn || detail < 0.05) { a.el.style.removeProperty("opacity"); return; }
       this._v.copy(a.node.pos).project(cam);
       const on = this._v.x >= -1 && this._v.x <= 1 && this._v.y >= -1 && this._v.y <= 1 && this._v.z < 1;
-      if (!on) { a.el.style.opacity = "0"; return; }
+      if (!on) { a.el.style.removeProperty("opacity"); return; }
       a.el.style.opacity = (0.92 * detail).toFixed(3);
       a.el.style.transform = `translate3d(${Math.round((this._v.x * .5 + .5) * W)}px,${Math.round((-this._v.y * .5 + .5) * Hh)}px,0) translate(-50%,-160%)`;
     });
@@ -670,7 +687,7 @@ export class EveTreeView extends ItemView {
         p.t.empty();
         const fd = p.t.createSpan({ cls: "fd" });
         fd.style.background = c.n.field >= 0 ? this.secOf(c.n.field).tint : ROLE[c.n.treeType].ring;
-        p.t.appendChild(document.createTextNode(c.n.title));
+        p.t.appendChild(this.containerEl.ownerDocument.createTextNode(c.n.title));
         p.d.setText(c.n.description); p.curId = c.n.id;
       }
       p.target = c.op; p.tier = c.tier; p.sel = c.sel;
@@ -683,7 +700,7 @@ export class EveTreeView extends ItemView {
       if (!p.node && p.op <= 0.001) continue;
       p.op += (p.target - p.op) * lerpf;
       if (p.target === 0 && p.op < 0.02) {
-        p.op = 0; p.el.style.opacity = "0";
+        p.op = 0; p.el.style.removeProperty("opacity");
         if (p.node) { this.active.delete(p.node.id); p.node = null; }
         continue;
       }
@@ -734,18 +751,22 @@ export class EveTreeView extends ItemView {
     this.flyTo(C.clone().addScaledVector(dir, dist), C);
   }
 
-  /* raycast the dots (+ visible bridges) under the pointer */
-  private pick(e: PointerEvent): { node?: EveNode; bridge?: EveBridge } | null {
+  /* raycast the dots (+ visible bridges + the silhouette, once it's visible) under the pointer */
+  private pick(e: PointerEvent): { node?: EveNode; bridge?: EveBridge; tree?: EveTree } | null {
     if (!this.renderer) return null;
     const rect = this.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
     const ray = new THREE.Raycaster(); ray.setFromCamera(ndc, this.camera);
     const targets: THREE.Object3D[] = [...this.G.dots.children];
     if (this.G.bridge.visible) for (const b of this.bridges) targets.push(b.sprite);
+    // F5: the silhouette is the whole-tree grab handle at far-zoom LOD — only pickable once it's actually
+    // faded in (matches the `detail < 0.05` gate the rest of the LOD crossfade uses).
+    if (this.lodT > 0.05) for (const tree of this.forest.trees) if (tree.sil) targets.push(tree.sil);
     const hit = ray.intersectObjects(targets, false)[0];
     if (!hit) return null;
     const ud = hit.object.userData;
     if (ud.bridge) return { bridge: ud.bridge as EveBridge };
+    if (ud.tree) return { tree: ud.tree as EveTree };
     if (ud.node) return { node: ud.node as EveNode };
     return null;
   }
@@ -766,7 +787,7 @@ export class EveTreeView extends ItemView {
     if (hit?.node && hit.node.sprite && this.isDraggable(hit.node)) {
       // press landed on a DRAGGABLE dot → prepare a drag and SUPPRESS orbit for this gesture (see initThree).
       // Root/trunk (structural anchors) and bridges fall through: press.node still gives click→card, and
-      // NOT stopping propagation lets a drag on them orbit as usual.
+      // NOT stopping propagation lets a drag on them orbit as usual — UNLESS it turns into a tree-grab below.
       e.stopPropagation();
       const sp = hit.node.sprite;
       const nrm = new THREE.Vector3(); this.camera.getWorldDirection(nrm);
@@ -776,25 +797,55 @@ export class EveTreeView extends ItemView {
       this.drag = { node: hit.node, plane, offset, prevSpin: this.controls.autoRotate, moved: false };
       this.controls.autoRotate = false;
       this.renderer.domElement.setPointerCapture?.(e.pointerId);
+      return;
+    }
+    // F5: whole-tree grab — the silhouette (far-zoom icon) OR a trunk/root structural anchor, at any zoom.
+    const grabTree = hit?.tree ?? (hit?.node && this.isTreeAnchor(hit.node) ? hit.node.tree : undefined);
+    if (grabTree) {
+      e.stopPropagation();
+      const grab = this.rayOnPlane(e, this.groundPlane);
+      const offset = grab ? new THREE.Vector3(grabTree.origin.x - grab.x, 0, grabTree.origin.z - grab.z) : new THREE.Vector3();
+      this.treeDrag = { tree: grabTree, offset, prevSpin: this.controls.autoRotate, moved: false };
+      this.controls.autoRotate = false;
+      this.renderer.domElement.setPointerCapture?.(e.pointerId);
     }
   };
   private onPointerMove = (e: PointerEvent) => {
-    if (!this.drag || !this.press) return;
-    if (!this.drag.moved && Math.hypot(e.clientX - this.press.x, e.clientY - this.press.y) < 5) return;
-    this.drag.moved = true;
-    const p = this.rayOnPlane(e, this.drag.plane); if (!p) return;
-    // F4: clamp inside the dot's OWN field wedge so a drag can never move it into another field's sector.
-    this.moveNode(this.drag.node, this.clampToWedge(this.drag.node, p.add(this.drag.offset)));
+    if (!this.press) return;
+    if (this.drag) {
+      if (!this.drag.moved && Math.hypot(e.clientX - this.press.x, e.clientY - this.press.y) < 5) return;
+      this.drag.moved = true;
+      const p = this.rayOnPlane(e, this.drag.plane); if (!p) return;
+      // F4: clamp inside the dot's OWN field wedge so a drag can never move it into another field's sector.
+      this.moveNode(this.drag.node, this.clampToWedge(this.drag.node, p.add(this.drag.offset)));
+      return;
+    }
+    if (this.treeDrag) {
+      if (!this.treeDrag.moved && Math.hypot(e.clientX - this.press.x, e.clientY - this.press.y) < 5) return;
+      this.treeDrag.moved = true;
+      const p = this.rayOnPlane(e, this.groundPlane); if (!p) return;
+      this.moveTree(this.treeDrag.tree, p.x + this.treeDrag.offset.x, p.z + this.treeDrag.offset.z);
+    }
   };
   private onPointerUp = (e: PointerEvent) => {
     if (e.button !== 0 || !this.press) return;
     const moved = Math.hypot(e.clientX - this.press.x, e.clientY - this.press.y);
-    const press = this.press, drag = this.drag;
-    this.press = null; this.drag = null;
+    const press = this.press, drag = this.drag, treeDrag = this.treeDrag;
+    this.press = null; this.drag = null; this.treeDrag = null;
     if (drag) {
       this.renderer?.domElement.releasePointerCapture?.(e.pointerId);
       this.controls.autoRotate = drag.prevSpin;
       if (drag.moved) { this.persistDot(drag.node); return; }   // a real drag → save, no card
+    }
+    if (treeDrag) {
+      this.renderer?.domElement.releasePointerCapture?.(e.pointerId);
+      this.controls.autoRotate = treeDrag.prevSpin;
+      if (treeDrag.moved) {
+        // cross-tree bridge arcs aren't live-tracked during the drag — re-route them now, once, on drop.
+        if (this.forest.bridges.length) this.rebuildBridges();
+        this.persistTree(treeDrag.tree);
+        return;
+      }
     }
     if (moved > 5) return;                                        // it was an orbit / pan, not a click
     if (press.node) this.selectNode(press.node);                 // click a dot → card (F3)
@@ -803,9 +854,14 @@ export class EveTreeView extends ItemView {
   };
   private onContextMenu = (e: MouseEvent) => { e.preventDefault(); };   // suppress menu so two-finger-click drag pans (no reset)
 
-  /** F4: only field dots move. Root/trunk are structural axis anchors; bridges are computed arc nodes. */
+  /** F4: only field dots move individually. Root/trunk are structural anchors (grabbing them moves the
+      WHOLE tree instead, see isTreeAnchor); bridges are computed arc nodes. */
   private isDraggable(n: EveNode): boolean {
     return n.field >= 0 && n.treeType !== "root" && n.treeType !== "trunk";
+  }
+  /** F5: root/trunk dots double as whole-tree grab handles, at any zoom (the silhouette is the other one). */
+  private isTreeAnchor(n: EveNode): boolean {
+    return n.treeType === "root" || n.treeType === "trunk";
   }
   /** F4: clamp a proposed WORLD position into the dot's OWN field wedge, in the tree's LOCAL cylindrical
       coords (matching place(): x=r·cosθ, z=−r·sinθ). Reuses the layout's wedge geometry (angular inset,
@@ -850,6 +906,42 @@ export class EveTreeView extends ItemView {
     void this.persist();
   }
 
+  /** F5 live-move: translate a WHOLE tree rigidly on the ground plane (x,z only — y is untouched). Every
+      dot/glow/edge follows via moveNode(); the wedge groups + silhouette + its 🌸/🍎 markers are repositioned
+      directly. The tree-name label and field-name anchors read tree.origin live in updateLabels(), so they
+      need no touch here. Saved dot positions (F1) are LOCAL to the tree, so they stay valid untouched. */
+  private moveTree(tree: EveTree, x: number, z: number) {
+    const dx = x - tree.origin.x, dz = z - tree.origin.z;
+    if (!dx && !dz) return;
+    tree.origin.x = x; tree.origin.z = z;
+    const shifted = new THREE.Vector3();
+    for (const n of tree.nodes) { shifted.set(n.pos.x + dx, n.pos.y, n.pos.z + dz); this.moveNode(n, shifted); }
+    tree.fieldFlatG?.position.set(x, 0, z);
+    tree.fieldColumnG?.position.set(x, 0, z);
+    if (tree.sil) tree.sil.position.set(x, H * 0.50, z);
+    if (tree.silMarks) for (const m of tree.silMarks) this.placeSilMark(m);
+  }
+  /** Persist a dragged tree's origin (WORLD x,z — trees sit at y=0). */
+  private persistTree(tree: EveTree) {
+    (this.settings.treeOrigins ??= {})[tree.id] = { x: tree.origin.x, z: tree.origin.z };
+    void this.persist();
+  }
+  /** Dispose the GL resources (geometry/material) of a scene node, if it carries any — used by
+      traverse() callbacks so cleanup doesn't need an `any`-typed parameter. */
+  private disposeObject3D(o: THREE.Object3D) {
+    const d = o as Disposable3D;
+    d.geometry?.dispose();
+    if (d.material) (Array.isArray(d.material) ? d.material : [d.material]).forEach((m) => m.dispose());
+  }
+  /** F5: bridge arcs are computed from node/tree positions at BUILD time — after a tree drop, tear the old
+      ones down and rebuild so they connect the new positions. Recompute-on-drop (not live during the drag). */
+  private rebuildBridges() {
+    this.G.bridge.traverse((o) => this.disposeObject3D(o));
+    this.G.bridge.clear();
+    this.bridges = [];
+    this.buildBridges();
+  }
+
   private selectNode(n: EveNode) {
     this.selected = n;
     if (this.lensChair) this.applyLens();   // keep the selected dot lit even if the active chair dims it
@@ -857,7 +949,7 @@ export class EveTreeView extends ItemView {
     if (sp) {
       const sz = sp.userData.baseScale as number;
       this.selRing.position.copy(n.pos); this.selRing.scale.set(sz * 2.4, sz * 2.4, 1); this.selRing.material.opacity = 0.95; this.selRing.visible = true;
-      this.G.dots.children.forEach((s) => (s as THREE.Sprite).scale.setScalar((s as THREE.Sprite).userData.baseScale));
+      this.G.dots.children.forEach((s) => (s as THREE.Sprite).scale.setScalar(((s as THREE.Sprite).userData as DotUserData).baseScale));
       sp.scale.setScalar(sz * 1.35);
     }
     this.showCard(n);
@@ -865,7 +957,7 @@ export class EveTreeView extends ItemView {
   private deselect() {
     const had = this.selected; this.selected = null; this.selRing.visible = false;
     if (had && this.lensChair) this.applyLens();   // re-dim a dot the lens had hidden
-    this.G.dots.children.forEach((s) => (s as THREE.Sprite).scale.setScalar((s as THREE.Sprite).userData.baseScale));
+    this.G.dots.children.forEach((s) => (s as THREE.Sprite).scale.setScalar(((s as THREE.Sprite).userData as DotUserData).baseScale));
     this.hideCard();
   }
 
@@ -941,14 +1033,14 @@ export class EveTreeView extends ItemView {
   }
 
   /* ---------------- control panel ---------------- */
-  private detectObsidianDark(): boolean { return document.body.classList.contains("theme-dark"); }
+  private detectObsidianDark(): boolean { return this.containerEl.ownerDocument.body.classList.contains("theme-dark"); }
   private applyTheme(dark: boolean) {
     if (!this.renderer) return;
     this.themeDark = dark; const T = dark ? THEMES.dark : THEMES.light; this.linkMul = T.linkMul;
     (this.scene.background as THREE.Color).set(T.bg); (this.scene.fog as THREE.Fog).color.set(T.fog);
     this.root.classList.toggle("dark", dark);
     for (const n of this.allNodes) {
-      if (n.sprite) { const u = n.sprite.userData; const m = n.sprite.material as THREE.SpriteMaterial;
+      if (n.sprite) { const u = n.sprite.userData as DotUserData; const m = n.sprite.material;
         m.map = dark ? this.diamondTexture(u.tint) : this.dotTexture(u.tint, u.ring);
         m.blending = dark ? THREE.AdditiveBlending : THREE.NormalBlending; m.needsUpdate = true; }
     }
@@ -958,7 +1050,7 @@ export class EveTreeView extends ItemView {
     for (const ga of this.glowAnim) { ga.m.blending = gb; ga.m.needsUpdate = true; }
     if (this.glowDimMat) { this.glowDimMat.blending = gb; this.glowDimMat.needsUpdate = true; }
     for (const tree of this.forest.trees) if (tree.silMarks)
-      for (const s of tree.silMarks) { const m = s.material as THREE.SpriteMaterial; m.blending = dark ? THREE.AdditiveBlending : THREE.NormalBlending; m.needsUpdate = true; }
+      for (const s of tree.silMarks) { const m = s.material; m.blending = dark ? THREE.AdditiveBlending : THREE.NormalBlending; m.needsUpdate = true; }
     if (this.themeBtn) this.themeBtn.setText(dark ? "☀️ Light" : "🌙 Dark");
   }
 
@@ -987,7 +1079,7 @@ export class EveTreeView extends ItemView {
     const guide = ui.createDiv({ cls: "eve-grp eve-guide" });
     guide.createDiv({ cls: "eve-lbl", text: "How to use it" });
     const steps = guide.createEl("ul", { cls: "eve-steps" });
-    const step = (lead: string, rest: string) => { const li = steps.createEl("li"); li.createEl("span", { cls: "k", text: lead }); li.appendText(rest); };
+    const step = (lead: string, rest: string) => { const li = steps.createEl("li"); li.createSpan({ cls: "k", text: lead }); li.appendText(rest); };
     step("Drag · scroll · two-finger-drag", " to fly through it, zoom, and pan.");
     step("Click a dot", " → see its card; drag a dot to reposition it (saved).");
     step("Zoom sets the detail", " → far out: green tree icons (names beneath) · mid: constellation · closer: titles · closest: + descriptions.");
@@ -1017,9 +1109,14 @@ export class EveTreeView extends ItemView {
     const seg = grp.createDiv({ cls: "eve-seg" });
     const mk = (val: "flat" | "column", text: string, checked: boolean) => {
       const lab = seg.createEl("label");
+      lab.toggleClass("is-checked", checked);   // :has(input:checked) is a perf cost — track the checked label via a class instead
       const r = lab.createEl("input", { type: "radio" }); r.name = "eve-fmode"; r.value = val; r.checked = checked;
-      lab.appendChild(document.createTextNode(text));
-      r.addEventListener("change", () => { if (r.checked) { this.fieldMode = val; this.applyFieldMode(); } });
+      lab.appendChild(this.containerEl.ownerDocument.createTextNode(text));
+      r.addEventListener("change", () => {
+        if (!r.checked) return;
+        this.fieldMode = val; this.applyFieldMode();
+        seg.querySelectorAll("label").forEach((l) => l.toggleClass("is-checked", l === lab));
+      });
     };
     mk("flat", "Flat wedge", this.fieldMode === "flat"); mk("column", "Column", this.fieldMode === "column");
 
@@ -1053,7 +1150,7 @@ export class EveTreeView extends ItemView {
     iconSel.addEventListener("change", () => {
       this.silIcon = iconSel.value as ZoomIcon; this.settings.zoomOutIcon = this.silIcon;
       for (const tree of this.forest.trees) {
-        if (tree.sil) { const m = tree.sil.material as THREE.SpriteMaterial; m.map = this.treeSilTexture(this.silIcon); m.needsUpdate = true; }
+        if (tree.sil) { const m = tree.sil.material; m.map = this.treeSilTexture(this.silIcon); m.needsUpdate = true; }
         if (tree.silMarks) for (const mk of tree.silMarks) this.placeSilMark(mk);   // re-anchor 🌸/🍎 onto the new crown
       }
       void this.persist();
@@ -1070,7 +1167,7 @@ export class EveTreeView extends ItemView {
     this.themeBtn = btns.createEl("button", { cls: "eve-btn", text: this.themeDark ? "☀️ Light" : "🌙 Dark", attr: { title: "Switch between light and diamond-dark" } });
     this.themeBtn.addEventListener("click", () => { this.themeManual = true; this.applyTheme(!this.themeDark); });
     const refresh = ui.createEl("button", { cls: "eve-btn", text: "⟳ Rebuild from vault" });
-    refresh.addEventListener("click", () => this.reload());
+    refresh.addEventListener("click", () => void this.reload());
     // F1 — clear all user-dragged positions (2-click confirm within 3s), then rebuild
     const resetLayout = ui.createEl("button", { cls: "eve-btn", text: "⌾ Reset dot layout", attr: { title: "Clear every dot you've dragged and re-run the auto-layout" } });
     resetLayout.addEventListener("click", () => {
@@ -1078,6 +1175,14 @@ export class EveTreeView extends ItemView {
       if (now - this.resetArmed > 3000) { this.resetArmed = now; new Notice("Reset dot layout? Click again within 3s to clear every moved dot."); return; }
       this.resetArmed = 0; this.settings.dotPositions = {};
       new Notice("Dot layout reset."); void this.persist().then(() => this.reload());
+    });
+    // F5 — clear all user-dragged tree origins (2-click confirm within 3s), then rebuild
+    const resetTreeLayout = ui.createEl("button", { cls: "eve-btn", text: "⌾ Reset tree layout", attr: { title: "Clear every tree you've dragged and return it to the auto row" } });
+    resetTreeLayout.addEventListener("click", () => {
+      const now = performance.now();
+      if (now - this.resetTreeArmed > 3000) { this.resetTreeArmed = now; new Notice("Reset tree layout? Click again within 3s to clear every moved tree."); return; }
+      this.resetTreeArmed = 0; this.settings.treeOrigins = {};
+      new Notice("Tree layout reset."); void this.persist().then(() => this.reload());
     });
 
     if (this.isForest) {
@@ -1091,6 +1196,9 @@ export class EveTreeView extends ItemView {
 
     this.buildChairLens(ui);
     // (in-view footer branding removed — a support link lives in the plugin's settings tab instead)
+
+    const help = ui.createEl("button", { cls: "eve-btn", text: "📖 Manual & help", attr: { title: "Open the full guide in your browser" } });
+    help.addEventListener("click", () => { window.open(MANUAL_URL); });
 
     // note / bridge card overlay (F3) — hidden until a dot/bridge is clicked
     this.noteCard = this.root.createDiv({ cls: "eve-card eve-note" });
@@ -1165,7 +1273,7 @@ export class EveTreeView extends ItemView {
   /* ---------------- loop + teardown ---------------- */
   private startLoop() {
     const loop = (t: number) => {
-      this.raf = requestAnimationFrame(loop);
+      this.raf = this.containerEl.win.requestAnimationFrame(loop);
       if (this.tween) {
         const k = Math.min(1, (t - this.tween.t0) / this.tween.dur), e = this.easeInOutCubic(k);
         this.camera.position.lerpVectors(this.tween.fromPos, this.tween.toPos, e);
@@ -1179,7 +1287,7 @@ export class EveTreeView extends ItemView {
       for (const n of this.allNodes) {
         // chair-lens dim floor is theme-aware: additive-blended diamonds vanish at 0.10 on black, so dark raises the floor
         const lens = (n._lens ?? 1) < 1 ? (this.themeDark ? 0.22 : 0.10) : (n._lens ?? 1);
-        if (n.sprite) (n.sprite.material as THREE.SpriteMaterial).opacity = lens * detail;
+        if (n.sprite) n.sprite.material.opacity = lens * detail;
       }
       // FIX3 light-shine: drive the SMALL cached glow-material set once per frame (subtle default, theme-
       // adaptive, capped so light never washes out and dark stays the showpiece). Slider scales the whole.
@@ -1187,20 +1295,20 @@ export class EveTreeView extends ItemView {
       for (const ga of this.glowAnim) ga.m.opacity = Math.min(gCap, (ga.accent ? gAcc : gLeaf) * detail * this.shine);
       if (this.glowDimMat) this.glowDimMat.opacity = Math.min(gCap, (this.themeDark ? 0.12 : 0.05) * detail * this.shine);
       for (const tree of this.forest.trees) {
-        if (tree.sil) (tree.sil.material as THREE.SpriteMaterial).opacity = this.lodT * SIL_OPACITY;
-        if (tree.silMarks) for (const m of tree.silMarks) (m.material as THREE.SpriteMaterial).opacity = this.lodT;
+        if (tree.sil) tree.sil.material.opacity = this.lodT * SIL_OPACITY;
+        if (tree.silMarks) for (const m of tree.silMarks) m.material.opacity = this.lodT;
       }
       for (const fm of this.fadeMats) fm.m.opacity = fm.b * detail * (fm.link ? this.linkMul : 1);
       if (this.selected && this.selected.sprite) { this.selRing.position.copy(this.selected.pos); this.selRing.material.opacity = 0.95 * detail; }
       this.updateLabels();
       this.renderer!.render(this.scene, this.camera);
     };
-    this.raf = requestAnimationFrame(loop);
+    this.raf = this.containerEl.win.requestAnimationFrame(loop);
   }
 
   /** Tear down GL + DOM. keepRoot=false leaves the root container for a reload. */
   private dispose(clearRoot = true) {
-    if (this.raf) cancelAnimationFrame(this.raf), (this.raf = 0);
+    if (this.raf) { this.containerEl.win.cancelAnimationFrame(this.raf); this.raf = 0; }
     this.ro?.disconnect(); this.ro = undefined;
     // interaction listeners live on the root (capture phase) + the canvas — remove both so reloads don't stack them
     this.root?.removeEventListener("pointerdown", this.onPointerDown, true);
@@ -1210,7 +1318,7 @@ export class EveTreeView extends ItemView {
       const c = this.renderer.domElement;
       c.removeEventListener("contextmenu", this.onContextMenu);
       this.controls?.dispose();
-      this.scene?.traverse((o: any) => { o.geometry?.dispose?.(); if (o.material) { const m = o.material; (Array.isArray(m) ? m : [m]).forEach((x: any) => x.dispose?.()); } });
+      this.scene?.traverse((o) => this.disposeObject3D(o));
       Object.values(this.texCache).forEach((t) => t.dispose()); this.texCache = {};
       this.renderer.dispose();
       this.renderer.forceContextLoss();   // release the GL context NOW — otherwise every rebuild/reopen leaks one until Electron kills the oldest (scene goes black)
@@ -1221,9 +1329,9 @@ export class EveTreeView extends ItemView {
     // — dispose the whole cached set explicitly (scene.traverse only reaches materials still attached).
     this.glowMats.forEach((m) => m.dispose()); this.glowMats.clear();
     this.glowDimMat?.dispose(); this.glowDimMat = undefined; this.glowAnim = [];
-    this.pool = []; this.active.clear(); this.sEls = []; this.aEls = []; this.sectorAnchor = [];
+    this.pool = []; this.active.clear(); this.sEls = []; this.aEls = []; this.sectorAnchor = []; this.sectorTree = [];
     this.selected = null; this.tween = null; this.lodT = 0;
-    this.press = null; this.drag = null; this.edgeIndex.clear();
+    this.press = null; this.drag = null; this.treeDrag = null; this.edgeIndex.clear();
     this.uiCard = undefined; this.pill = undefined; this.noteCard = undefined;
     this.lensChair = null; this.lensCast = []; this.viewDots = []; this.mirrorEl = undefined; this.lensSelect = undefined;
     if (clearRoot && this.root) {
