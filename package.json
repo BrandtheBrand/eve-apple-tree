@@ -1,6 +1,6 @@
 {
   "name": "eve-apple-tree",
-  "version": "0.5.2",
+  "version": "0.5.4",
   "description": "Eve's Apple Tree Thinking System — grow your Obsidian notes into a living 3D tree of light.",
   "main": "main.js",
   "type": "module",

@@ -96,15 +96,17 @@
 .eve-tree-root.dark .eve-alabel{filter:brightness(2.2)}
 
 /* ---- F2: label text-size scale (‑‑eve-txt, set live from JS). Each carries a FLOOR: the slider's
-   0.6x end put node titles at 6px in a real vault, which is not small — it is invisible.
+   0.6x end put node titles at 6px in a real vault, which is not small — it is invisible. The floor is
+   10px: legible, and low enough that the slider keeps working. Overlap is handled by de-collision
+   (pickNonOverlapping), never by refusing to shrink.
    These override the shorthand font-size
    only, so weight / line-height / family from each label's `font:` rule are preserved. ---- */
 .eve-tree-root{--eve-txt:1}
-.eve-tree-root .eve-lblnode .nt{font-size:max(11px,calc(11px*var(--eve-txt,1)))}
-.eve-tree-root .eve-lblnode .nd{font-size:max(10px,calc(10px*var(--eve-txt,1)))}
-.eve-tree-root .eve-slabel{font-size:max(11px,calc(12px*var(--eve-txt,1)))}
-.eve-tree-root .eve-alabel{font-size:max(10px,calc(9px*var(--eve-txt,1)))}
-.eve-tree-root .eve-tlabel{font-size:max(14px,calc(16px*var(--eve-txt,1)))}
+.eve-tree-root .eve-lblnode .nt{font-size:max(10px,calc(11px*var(--eve-txt,1)))}
+.eve-tree-root .eve-lblnode .nd{font-size:max(9px,calc(10px*var(--eve-txt,1)))}
+.eve-tree-root .eve-slabel{font-size:max(10px,calc(12px*var(--eve-txt,1)))}
+.eve-tree-root .eve-alabel{font-size:max(9px,calc(9px*var(--eve-txt,1)))}
+.eve-tree-root .eve-tlabel{font-size:max(10px,calc(16px*var(--eve-txt,1)))}
 
 /* ---- F2: panel minimize (header control + collapsed pill) ---- */
 .eve-tree-root .eve-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}

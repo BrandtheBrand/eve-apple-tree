@@ -8,7 +8,7 @@ import {
   LOD_START, LOD_END, SIL_OPACITY, SIL_GREEN, BRIDGE_COL,
   angleOf, place, hexA, lighten, lightHex, THEMES,
   ZOOM_LEVELS, type ZoomLevel, type ZoomStop, zoomStops, nearestStop, type Lod, lodAt,
-  POOL_TINT, poolOpacity, seedDotOpacity, seedGlow, gridOrigins, nearestCellIndex, chairsOnDot,
+  POOL_TINT, poolOpacity, seedDotOpacity, seedGlow, swapTargetAt, pickNonOverlapping, chairsOnDot,
 } from "./layout";
 
 export const VIEW_TYPE_EVE = "eve-apple-tree-view";
@@ -694,12 +694,24 @@ export class EveTreeView extends ItemView {
 
     // tree-name labels (forest): ICON-MODE ONLY — fade in with the silhouette, anchored BENEATH the tree.
     // STANDARD ZOOM BANDS (% of fit distance D0): >=115% icon (name beneath) · 70-115% constellation · <70% titles · <42% titles+descriptions
+    // Tree names had no de-collision at all, so a forest seen edge-on wrote every name over every other
+    // one ("Muji Natural Sc…Ope…Sustainable Architecture"). Thin them the way node titles are thinned:
+    // project all of them, drop any that would land on a nearer one, and keep the nearer.
+    const nameCands: { tree: EveTree; sx: number; sy: number; dist: number }[] = [];
     for (const tree of this.forest.trees) {
       if (!tree.nameLabelEl) continue;
+      tree.nameLabelEl.style.removeProperty("opacity");
+      if (lod.treeName < 0.02) continue;
       this._v.set(tree.origin.x, -2.8, tree.origin.z).project(cam);
-      const on = this._v.x >= -1.05 && this._v.x <= 1.05 && this._v.y >= -1.05 && this._v.y <= 1.05 && this._v.z < 1;
-      tree.nameLabelEl.style.opacity = on ? lod.treeName.toFixed(3) : "0";   // takes over once per-note titles go
-      tree.nameLabelEl.style.transform = `translate3d(${Math.round((this._v.x * .5 + .5) * W)}px,${Math.round((-this._v.y * .5 + .5) * Hh)}px,0) translate(-50%,0)`;
+      if (!(this._v.x >= -1.05 && this._v.x <= 1.05 && this._v.y >= -1.05 && this._v.y <= 1.05 && this._v.z < 1)) continue;
+      const sx = (this._v.x * .5 + .5) * W, sy = (-this._v.y * .5 + .5) * Hh;
+      nameCands.push({ tree, sx, sy, dist: cam.position.distanceTo(new THREE.Vector3(tree.origin.x, 0, tree.origin.z)) });
+    }
+    // a name is roughly this wide on screen; two closer than that would run into each other
+    const nameGap = 130 * this.textScale;
+    for (const c of pickNonOverlapping(nameCands, nameGap)) {
+      c.tree.nameLabelEl!.style.opacity = lod.treeName.toFixed(3);
+      c.tree.nameLabelEl!.style.transform = `translate3d(${Math.round(c.sx)}px,${Math.round(c.sy)}px,0) translate(-50%,0)`;
     }
 
     // the shared seed pool names itself in the same band the tree names use
@@ -1116,43 +1128,30 @@ export class EveTreeView extends ItemView {
     if (tree.sil) tree.sil.position.set(x, H * 0.50, z);
     if (tree.silMarks) for (const m of tree.silMarks) this.placeSilMark(m);
   }
-  /** The cells this forest's trees stand in, in cell order (index i == the tree at order[i]). */
-  private cells(): { x: number; z: number }[] {
-    const seeds = this.allNodes.filter((n) => n._pool === "forest").length;
-    return gridOrigins(this.forest.trees.length, seeds);
-  }
-
   /**
-   * v0.5.1 — a dropped tree SNAPS to the nearest cell, and if that cell is taken the two trees swap.
-   * Free-dragging let a tree be parked arbitrarily far out, where the forest's fit distance ballooned and
-   * no zoom stop framed it usefully; on the grid every tree has a place and the arrangement stays a
-   * permutation, which is why it can be saved as an order of ids rather than as coordinates.
+   * v0.5.3 — a dropped tree stays where it was dropped. Only if it lands ON another tree do the two swap.
+   * (0.5.1 snapped every drop to the nearest grid cell, which turned the grid from a sensible default into
+   * a cage: the thinker could not put a tree where she wanted it.)
    */
   private persistTree(tree: EveTree) {
-    const cells = this.cells();
-    const order = this.settings.treeOrder?.filter((id) => this.forest.trees.some((t) => t.id === id)) ?? [];
-    for (const t of this.forest.trees) if (!order.includes(t.id)) order.push(t.id);
-
-    const from = order.indexOf(tree.id);
-    const to = nearestCellIndex(tree.origin.x, tree.origin.z, cells);
-    if (from < 0 || to < 0 || from === to) { this.settleTrees(order, cells); return; }
-    const occupant = order[to];
-    order[to] = tree.id; order[from] = occupant;      // swap — the other tree takes the cell just vacated
-    this.settleTrees(order, cells);
-    if (occupant && occupant !== tree.id) new Notice(`Swapped with ${occupant}.`);
-  }
-
-  /** Put every tree on its cell (animating nothing — the drop is the gesture) and save the order. */
-  private settleTrees(order: string[], cells: { x: number; z: number }[]) {
-    order.forEach((id, i) => {
-      const t = this.forest.trees.find((x) => x.id === id);
-      if (t && cells[i]) this.moveTree(t, cells[i].x, cells[i].z);
-    });
-    this.settings.treeOrder = order;
-    delete this.settings.treeOrigins;                 // superseded by the order (see layout.ts)
+    const partner = swapTargetAt(tree.origin.x, tree.origin.z, tree.id,
+      this.forest.trees.map((t) => ({ id: t.id, origin: t.origin })));
+    const saved = (this.settings.treeOrigins ??= {});
+    if (partner) {
+      const other = this.forest.trees.find((t) => t.id === partner.id)!;
+      const wasThere = { x: other.origin.x, z: other.origin.z };
+      const cameFrom = saved[tree.id] ?? { x: tree.origin.x, z: tree.origin.z };
+      this.moveTree(tree, wasThere.x, wasThere.z);
+      this.moveTree(other, cameFrom.x, cameFrom.z);
+      saved[tree.id] = { ...wasThere }; saved[other.id] = { ...cameFrom };
+      new Notice(`Swapped with ${other.topic}.`);
+    } else {
+      saved[tree.id] = { x: tree.origin.x, z: tree.origin.z };
+    }
     if (this.forest.bridges.length) this.rebuildBridges();
     void this.persist();
   }
+
   /** Dispose the GL resources (geometry/material) of a scene node, if it carries any — used by
       traverse() callbacks so cleanup doesn't need an `any`-typed parameter. */
   private disposeObject3D(o: THREE.Object3D) {
@@ -1427,7 +1426,7 @@ export class EveTreeView extends ItemView {
     resetTreeLayout.addEventListener("click", () => {
       const now = performance.now();
       if (now - this.resetTreeArmed > 3000) { this.resetTreeArmed = now; new Notice("Undo every tree you've moved? Click again within 3s."); return; }
-      this.resetTreeArmed = 0; this.settings.treeOrigins = {}; this.settings.treeOrder = undefined;
+      this.resetTreeArmed = 0; this.settings.treeOrigins = {};
       new Notice("Tree moves undone."); void this.persist().then(() => this.reload());
     });
 

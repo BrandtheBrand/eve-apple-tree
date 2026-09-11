@@ -4,6 +4,91 @@ Reverse-chronological. Each entry: what changed, why, and (for incidents) the ru
 
 ---
 
+## 2026-09-11 — Package-wide audit: everything the code changed, said out loud (v0.5.4)
+
+A full sweep of all 107 files against the 0.5.0–0.5.4 changes, because four versions of code had shipped
+while parts of the package still described the plugin as it was in 0.4.1.
+
+**The AI team was two documents behind.** `agents/gardener/SKILL.md` and the starter vault's copy had no
+seed and no PARK move — only the live vault's copy had been updated. The gardener was therefore still being
+told to capture pending topics as leaves, which is the exact thing the seed type exists to stop. All three
+copies now agree, and `test/package-parity.test.ts` asserts the packaged pair stay identical and that the
+gardener's model table names every dot type the renderer can draw.
+
+**The standalone renderer learned seeds.** `viz/tree-of-light.template.html` and the demo know `seed` as a
+sixth type (green, lit). Its `README` now states the two things that stay plugin-only (the pool, the zoom
+scale, the forest layout) and the one control that deliberately diverges: the renderer KEEPS the chair lens,
+because a standalone tree is one topic with one cast — the case the lens was always good at — while the
+plugin moved the layer onto each dot's card.
+
+**Also brought level:** the README's feature list (the repo's landing page) — the lens entry rewritten,
+seeds, the zoom scale, the self-arranging forest and the ignore setting added; the manual's panel table
+(a row still advertised the removed Reset button); `START-HERE.md`, which never mentioned seeds to the one
+reader guaranteed to be new; `HOW-TO.md`, which listed six moves and now lists PARK too; a new
+`prompts/park-seed.md`; a seed in `example-tree/`, so the shipped example finally shows all six types; and
+the team zip, which shipped no prompts at all and now ships them.
+
+**Known and unchanged:** the five screenshots in `img/` date from 2026-07-05 and predate every visual change
+in 0.5.x. They can only be retaken from a running Obsidian, so they are listed as outstanding rather than
+quietly left to rot.
+
+---
+
+## 2026-09-11 — Keep a folder in the vault, off the tree (v0.5.4)
+
+*Same pass, three things this was shipping wrong to everyone else.* The starter vault opened with TWO
+trees — "My First Tree", which it exists to show, and a phantom "templates" tree, because its own six
+template files carry live frontmatter. It now ships a `data.json` with `templates/` already ignored. Its
+bundled plugin build was **0.4.1, two versions behind**, which would have ignored the new setting
+outright — the bundle is now built from source, and a test asserts the two versions match so a stale
+bundle can never ship again. And `seed.md` had been added to the kit's templates in 0.5.0 but never to the
+starter vault's, so a new user got no seed template at all; a test now asserts the two folders agree.
+
+The team zip (Path C) copies `templates/` into the user's own vault, so `INSTALL-TEAM.txt` now names the
+one setting to change, and the manual and package README say the same for anyone copying the package into
+an existing vault.
+
+New setting: **Folders to keep off the tree** (one per line, or comma separated). Those notes stay in the
+vault, stay searchable, stay editable — they just never become dots, seeds, bridges, or a tree of their
+own. The case that prompted it: a template pack you want to keep copying from, whose files carry real
+frontmatter and were therefore rendering as a tree of their own.
+
+Obsidian's own "Excluded files" setting would have been the natural home, but it is not in the public API
+(checked against typings 1.13.1), and reaching for the private one risks a plugin-review rejection — so
+this is the plugin's own, explicit setting.
+
+The matching rule stops at the folder boundary: `Eve Apple Tree` hides `Eve Apple Tree/x.md` and never
+`Eve Apple Trees/x.md` or `Eve Apple Tree.md`. Blank patterns are dropped, because an empty pattern
+prefix-matches every path in the vault and would silently blank the entire forest. Both are tests, and the
+blank-pattern test asserts the parse result, not just the match — a first version passed for the wrong
+reason (the boundary rule happened to cover it) and would not have caught the bug it was written for.
+
+---
+
+## 2026-09-11 — A tree goes where you drop it (v0.5.3)
+
+**Snapping is gone.** 0.5.1 pulled every dropped tree to the nearest grid cell, which turned the grid from
+a sensible default into a cage: you could not put a tree where you wanted it. A tree now stays exactly
+where it is dropped, and the two swap only when one is dropped ON another. The grid is what happens to
+trees nobody has moved.
+
+**One hand-placed tree no longer breaks grouping for the whole forest.** The bridge groups were computed
+over only the auto-placed trees, so any bridge with one end already positioned by hand was silently
+dropped — dragging a single tree once left its partner ungrouped on the far side of the forest. Groups are
+computed over ALL trees now, and a group containing a hand-placed tree gathers AROUND it (on a lattice
+anchored at that tree) instead of going to the middle of the grid. Verified on a real vault: a bridged
+pair that had been 82 units apart now stands one span apart.
+
+**Tree names had no de-collision at all.** Node titles have been thinned against each other since 0.1;
+tree names never were, so a forest seen edge-on wrote every name over every other one. They are now
+thinned the same way — projected, sorted by distance, and any that would land on a nearer one is dropped.
+
+**The text-size floor overshot.** 0.5.1 gave tree names a 14px floor after finding 6px titles in a real
+vault; at the slider's 0.6x end that meant the slider had stopped doing anything. The floor is 10px now:
+legible, and low enough that the control still controls. Overlap is de-collision's job, not the font's.
+
+---
+
 ## 2026-09-11 — The stakeholder layer moves onto the dot (v0.5.2)
 
 The chair lens was a forest-wide filter in the panel: one dropdown listing every chair in the vault,

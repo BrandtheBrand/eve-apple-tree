@@ -16,12 +16,13 @@ That's it. Come back tomorrow and the tree is taller.
 
 ---
 
-## The six moves (what actually happens)
+## The moves (what actually happens)
 
 You don't need to memorize these — the Gardener runs them. But knowing them helps you play along.
 
 | Move | You… | The Gardener… |
 |---|---|---|
+| 🌰 **Park** | mention a topic you haven't opened | drops a seed in the pool — one line, no pretending you've thought it through |
 | 🌱 **Plant** | say a thought | turns it into a clean leaf |
 | ✨ **Inspire** | feel stuck or curious | hands you the question / lens you're missing |
 | 🕸 **Extend** | have related ideas | finds the cross-field link and proposes it |

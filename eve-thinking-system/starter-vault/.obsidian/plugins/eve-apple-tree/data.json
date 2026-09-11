@@ -1,0 +1,6 @@
+{
+  "onlyTreeNotes": true,
+  "forestByFolder": true,
+  "clusterLinkedDots": true,
+  "ignoreFolders": "templates/"
+}

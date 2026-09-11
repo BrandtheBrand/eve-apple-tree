@@ -223,6 +223,8 @@ Mark a breakthrough either way: set `tree_type: flower`, or add a `flower: true`
 
 You don't need to write this from scratch each time. A `templates/` folder (bundled with the starter vault, and with the standalone AI-team download from Path C) has one ready-made file for every note type: `root.md`, `trunk.md`, `leaf.md`, `flower.md`, `apple.md`, `seed.md`, plus two extras: `field.md`, to define a brand-new lens with its own home note, and `bridge.md`, described below. Copy the one you need, fill in the blanks, and save it inside the folder that is, or will become, your tree.
 
+> **If you copied the whole package into your vault** (templates, docs, the starter vault), those files carry real frontmatter and will draw trees of their own. Put their folder in **Settings → Eve Apple Tree → "Folders to keep off the tree"** and they stay in the vault, copyable, but off the picture.
+
 A note doesn't have to be all-or-nothing. Frontmatter with some tree keys but not others still renders, with reasonable defaults: an untyped note becomes a leaf, an unfielded one lands in "Unfiled," an untimed one uses its creation date. A note with none of the tree keys at all stays off the tree, invisible, until you tag it, or until you turn off "Only show notes with tree frontmatter" in Obsidian's Settings (section 6), which makes the plugin render every note in the vault, tagged or not.
 
 Two more things a note can optionally carry:
@@ -248,17 +250,18 @@ Before the panel: these are the physical moves for exploring the tree.
 - **Two-finger-click (right mouse button) and drag** to pan sideways.
 - **Click a dot** to open its card (see below).
 - **Drag a leaf, flower, or apple dot** to place it by hand inside its own field's sector; the new position saves automatically and survives a rebuild or an app restart. Root and trunk dots are fixed anchors and can't be dragged this way.
-- **Drag a whole tree** by its trunk, root, or far-zoom silhouette. Every tree stands in a **grid cell**: a dropped tree snaps to the nearest cell, and if that cell is taken, the two trees **swap**. The grid is a checker around the seed pool, which always sits at the exact middle, and it widens as the forest grows rather than stretching into a row — so no tree can end up so far away that you can't frame it. Trees joined by a **bridge** are placed on the same patch of ground. **↩︎ Undo my tree moves** in the panel puts every tree back in the spot the layout would have chosen.
+- **Drag a whole tree** by its trunk, root, or far-zoom silhouette, and drop it **anywhere** — it stays exactly where you put it. Drop it **on top of another tree** and the two swap places instead. Trees you have never moved arrange themselves on a **checker grid** around the seed pool, which sits at the exact middle; the grid widens as the forest grows rather than stretching into a row. Trees joined by a **bridge** are placed together — and if one of them is a tree you positioned by hand, the others gather beside *it*, not in the middle of the grid. **↩︎ Undo my tree moves** returns every tree to the automatic arrangement.
 - **Point at a seed** in a pool to read its topic; the name disappears when you move away. Clicking one opens its card like any other dot.
 - **The zoom scale** on the right edge has four stops — 🌲 whole forest, 🌳🌳🌳 a few trees, 🌳 one tree, 🍃 close on a leaf. The stop you are currently at is highlighted; click any other to fly there. A stop your vault can't express (three trees when you only have two) is dimmed rather than dead.
 
 ### Plugin settings (Obsidian's Settings tab)
 
-Go to **Settings → Eve Apple Tree Thinking System**. Three toggles live here; change them rarely, and click **Reload my notes** afterward to see the effect.
+Go to **Settings → Eve Apple Tree Thinking System**. Four settings live here; change them rarely, and click **Reload my notes** afterward to see the effect.
 
 | Setting | What it does | Default |
 |---|---|---|
 | Only show notes with tree frontmatter | Renders only notes carrying `tree_type` / `field` / `time` / `flower` keys. Turn off to render every note in the vault, tagged or not. | On |
+| Folders to keep off the tree | One folder per line (or comma separated). Those notes stay in your vault, searchable and editable, but never become dots, seeds, bridges, or a tree of their own. Use it for template packs, archives, or reference material you keep nearby but aren't thinking about. Matching stops at the folder boundary, so `Archive` never catches `Archives`. | *(empty)* |
 | Forest mode: one folder = one tree | Each top-level folder becomes its own independent tree. Turn off to treat the whole vault as a single tree. | On |
 | Cluster linked dots | Pulls dots in the same field that link to each other closer together, instead of spreading everything evenly. Skipped automatically on any single tree over 500 notes, to keep Obsidian responsive. | On |
 
@@ -280,7 +283,6 @@ Open the tree and a floating panel appears on the left. Every control in it, in 
 | Appearance: **Text size** (slider, 0.6x to 2x) | Scales every label live. | Presenting on a projector, or when text feels crowded. |
 | Appearance: **Light shine** (slider, 0x to 2x) | Sweeps every dot's glow from subtle to strong. Shows best in dark mode. | Tuning the look to taste, especially before a screenshot. |
 | Appearance: **Zoom-out icon** (dropdown: Round, Conifer, Apple) | Sets the shape each tree collapses into at far zoom. Apple bakes the fruit into the crown. | Personal taste, or matching a screenshot style. |
-| View: **↺ Reset** | Returns the camera to the opening view. | You've orbited somewhere disorienting. |
 | View: **🌙 Dark / ☀️ Light** | Manually overrides light or dark mode. Otherwise the tree follows Obsidian's own theme automatically. | Keeping the tree's theme independent of your note-editing theme. |
 | **⟳ Reload my notes** | Re-scans your notes and redraws the tree. | Any time after adding, editing, or moving a note. |
 | **↩︎ Undo my dot moves** | Puts every dot you've dragged by hand back where the automatic layout would have placed it. Click once to arm it, click again within 3 seconds to confirm. | Your hand-placed dots have gotten messy and you want to start clean. |

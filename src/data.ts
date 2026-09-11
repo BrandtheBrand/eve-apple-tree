@@ -2,7 +2,7 @@ import { App, TFile, Notice } from "obsidian";
 import * as THREE from "three";
 import {
   EveNode, EveEdge, EveTree, EveBridge, EveForest, EveSettings, View, TreeType,
-  placeNodes, clusterRelax, insideWedge, treePoolPlacement, forestPoolPlacement, gridOrigins, resolveTreeOrder,
+  placeNodes, clusterRelax, insideWedge, treePoolPlacement, forestPoolPlacement, autoOrigins, parseIgnore, isIgnored,
 } from "./layout";
 
 const TREE_TYPES: TreeType[] = ["root", "trunk", "leaf", "flower", "apple", "seed"];
@@ -82,32 +82,16 @@ function parseBodyViews(content: string): View[] | undefined {
 }
 
 /**
- * Carry a pre-0.5.1 free-dragged arrangement into the cell grid: trees keep their rough relative places
- * by being read off in the same sweep the grid hands cells out (outward, then around). It is an
- * approximation of a hand layout, not a reproduction of it — which is the honest thing a snap-to-grid
- * can offer, and better than discarding the arrangement outright.
- */
-function legacyOrder(trees: EveTree[], settings: EveSettings): string[] | undefined {
-  const saved = settings.treeOrigins;
-  if (!saved) return undefined;
-  const placed = trees.map((t) => t.id).filter((id) => saved[id] && typeof saved[id].x === "number");
-  if (!placed.length) return undefined;
-  const cx = placed.reduce((a, id) => a + saved[id].x, 0) / placed.length;
-  const cz = placed.reduce((a, id) => a + saved[id].z, 0) / placed.length;
-  return placed.sort((a, b) => {
-    const A = saved[a], B = saved[b];
-    return Math.hypot(A.x - cx, A.z - cz) - Math.hypot(B.x - cx, B.z - cz)
-      || Math.atan2(A.z - cz, A.x - cx) - Math.atan2(B.z - cz, B.x - cx);
-  });
-}
-
-/**
  * Build the FOREST from the vault (D4). One top-level folder = one tree; each tree is independent
  * (its own fields, trunk, R8 layout, and movable origin). Cross-tree connections exist ONLY through
  * bridge files. A single-folder / flat vault yields one tree (back-compatible).
  */
 export async function buildForest(app: App, settings: EveSettings): Promise<EveForest> {
-  const files = app.vault.getMarkdownFiles();
+  // v0.5.4 — folders the thinker keeps in the vault but off the tree (template packs, archives, the
+  // plugin's own docs). Dropped before anything else reads them, so an ignored note can't become a dot,
+  // a seed, a bridge, or a tree of its own.
+  const ignore = parseIgnore(settings.ignoreFolders);
+  const files = app.vault.getMarkdownFiles().filter((f) => !isIgnored(f.path, ignore));
   const forestByFolder = settings.forestByFolder !== false;
   const treeKeyOf = (path: string): string => {
     if (!forestByFolder) return "(all)";
@@ -258,14 +242,11 @@ export async function buildForest(app: App, settings: EveSettings): Promise<EveF
   // origin keep their auto row slot at their original sorted index — simplest honest rule: moving one tree
   // doesn't re-pack the row, so a dragged tree can end up overlapping an auto-placed one (documented, not fixed).
   trees.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  // v0.5.1 — EVERY tree stands in a grid cell. The grid is a checker around a reserved middle (so the
-  // seed pool is always dead centre) and bounded (so no tree can be parked so far out that no zoom stop
-  // frames it). What the thinker's dragging changes is WHICH cell, stored as an order of tree ids.
+  // v0.5.3 — a tree stands where the thinker dropped it. Trees never moved are auto-placed on a checker
+  // grid around the reserved middle, group by group, so bridged trees share a patch of ground.
   const driftingCount = trees.reduce((a, t) => a + t.nodes.filter((n) => n._pool === "forest").length, 0);
-  const cells = gridOrigins(trees.length, driftingCount);
-  const order = resolveTreeOrder(trees.map((t) => t.id), settings.treeOrder ?? legacyOrder(trees, settings), bridges, cells);
-  const byIdTree = new Map(trees.map((t) => [t.id, t]));
-  order.forEach((id, i) => { const t = byIdTree.get(id); if (t && cells[i]) t.origin = { ...cells[i] }; });
+  const origins = autoOrigins(trees.map((t) => t.id), settings.treeOrigins ?? {}, bridges, driftingCount);
+  for (const t of trees) t.origin = { ...origins[t.id] };
   for (const t of trees) {
     // forest-pool seeds belong to no tree, so they don't ride their folder's origin — see below.
     for (const node of t.nodes) { if (node._pool === "forest") continue; node.pos.x += t.origin.x; node.pos.z += t.origin.z; }
@@ -278,7 +259,8 @@ export async function buildForest(app: App, settings: EveSettings): Promise<EveF
   if (drifting.length) {
     // A purely auto-arranged forest reserved its middle for the pool, so aim there. Once the thinker has
     // dragged trees, that reservation no longer describes the ground — fall back to their centre of mass.
-    // every tree is on the grid now, and the grid reserved its middle for exactly this
+    // the grid reserves its middle for the pool; a hand-placed tree can still be sitting there, and
+    // forestPoolPlacement steps aside when the preferred spot is occupied.
     const place = forestPoolPlacement(drifting.length, trees.map((t) => t.origin), { x: 0, z: 0 });
     drifting.forEach((n, i) => n.pos.set(place.x + place.slots[i].x, place.slots[i].y, place.z + place.slots[i].z));
     seedPool = { x: place.x, z: place.z, r: place.r };

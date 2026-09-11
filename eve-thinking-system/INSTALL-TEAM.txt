@@ -15,6 +15,19 @@ EVE'S TREE TEAM (AI companion kit) — add the team to a vault you already have
    conversation (no memory features), and the observer in another.
 
 The templates/ folder holds note templates (root, trunk, leaf, flower, apple,
-field, bridge) if you prefer to grow the tree fully by hand. The team proposes,
-you decide: it never creates your flowers or apples, and writes nothing without
-your approval.
+seed, field, bridge) if you prefer to grow the tree fully by hand, and prompts/
+holds the ready-to-paste moves (inspire, extend, capture-aha, park-seed,
+harvest-apple, daily-tend, weekly-tend). The team
+proposes, you decide: it never creates your flowers or apples, and writes
+nothing without your approval.
+
+ONE SETTING TO CHANGE. The templates carry real frontmatter so you can copy them
+straight into a note — which also means the plugin would draw them as a tree of
+their own. Add this line in Settings -> Eve Apple Tree Thinking System ->
+"Folders to keep off the tree":
+
+    templates/
+
+They stay in your vault, searchable and copyable; they just stop being a tree.
+Add any other folder you keep nearby but aren't thinking about (an archive, a
+reference pack) on its own line.

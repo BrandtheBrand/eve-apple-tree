@@ -4,7 +4,7 @@
 
 Welcome. This is a little garden for your thinking, not a filing cabinet for notes.
 
-Most note apps ask you to sort things into folders and then watch them sit there, flat. This one treats every note as a **dot on a living tree**: ideas are leaves, the links between them are branches, a breakthrough is a flower, and something you finish and share is an apple. As you think, the tree grows **taller** (over time) and **wider** (across the different lenses you think with) — and you can fly around it in 3D.
+Most note apps ask you to sort things into folders and then watch them sit there, flat. This one treats every note as a **dot on a living tree**: ideas are leaves, the links between them are branches, a breakthrough is a flower, and something you finish and share is an apple. A topic you've noticed but haven't opened yet is a **seed** — it waits in a pool on the ground instead of pretending to be a thought you've already had. As you think, the tree grows **taller** (over time) and **wider** (across the different lenses you think with) — and you can fly around it in 3D.
 
 You already have a small tree to look at. It's the folder called **My First Tree** — a handful of dots about a very human question ("why do I put things off?"). It's there so the very first thing you see is a real, growing tree rather than an empty screen.
 

@@ -15,7 +15,7 @@ A complete, self-contained, browser-ready renderer. It **auto-frames any data** 
 ```js
 { id, type, field, time, title, desc, links:[ids] }
 ```
-- `type`: `'root' | 'trunk' | 'leaf' | 'flower' | 'apple'`
+- `type`: `'root' | 'trunk' | 'leaf' | 'flower' | 'apple' | 'seed'`
 - `field`: a lens/sector **name** (string), or `null` for root/trunk (they sit on the central axis)
 - `time`: number or date-ordinal → height (older = lower, newer = higher)
 - `links`: array of other note `id`s — the rhizome. **Cross-field links matter most.**
@@ -92,3 +92,19 @@ Open the file (or have the user open it) and confirm. If you can't verify, say s
 - ❌ `AdditiveBlending` on the cream background — washes glows out to white.
 
 That's it. Feed data in, never rewrite the engine.
+
+---
+
+## What this renderer does NOT do (and the plugin does)
+
+This template draws any tree from a DATA block, and that is all it is for. Features that need a live vault
+stay in the Obsidian plugin: the **seed pool** on the ground (a `seed` dot here draws as a green dot in the
+canopy like any other, with no pool beneath it), the **zoom scale**, the **checker forest layout**, and the
+drag-and-swap arrangement.
+
+They also diverge on one control, deliberately. **This renderer keeps the chair lens** described above; the
+plugin removed it in 0.5.2, because across a whole vault it offered every chair on every tree and its
+percentages were computed across all trees at once. A standalone tree is one topic with one cast, which is
+the case the lens was always good at — so it stays here, and in the plugin the stakeholder layer lives on
+each dot's card instead. Use the plugin to look at your own
+vault; use this to hand someone a single self-contained tree they can open in a browser.

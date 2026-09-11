@@ -4,6 +4,8 @@ Most note apps are filing cabinets: you put things in and they sit there flat. T
 
 Eve's tree team tends the tree with you. It proposes leaves and connections; you decide what to keep. It never creates your ah-ha moments or your outputs, and it writes nothing without your approval.
 
+> **Heads-up for anyone copying this folder into an existing vault:** the files in `templates/` carry real frontmatter so they can be copied straight into a note — which also means the plugin will draw them as a tree. Add the folder to **Settings → Eve Apple Tree → "Folders to keep off the tree"** and they stay copyable but off the picture. The starter vault ships with this already set.
+
 > **Fastest start (beginners): [`starter-vault/`](starter-vault/)** — a ready-to-open Obsidian vault with the plugin pre-bundled, Eve's tree team installed, and a real "My First Tree" waiting inside. Open it, read `START-HERE.md`, and you're planting in three steps. Everything below is the deeper reference.
 
 ---

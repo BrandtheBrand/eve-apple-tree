@@ -20,6 +20,7 @@ cp "$KIT/agents/challenger.md"           "$STAGE/eve-tree-team/.claude/agents/ch
 cp "$KIT/agents/observer.md"             "$STAGE/eve-tree-team/.claude/agents/observer.md"
 cp "$KIT/agents/gardener/SKILL.md"       "$STAGE/eve-tree-team/.claude/skills/gardener/SKILL.md"
 cp -R "$KIT/starter-vault/templates"     "$STAGE/eve-tree-team/templates"
+cp -R "$KIT/prompts"                     "$STAGE/eve-tree-team/prompts"
 
 rm -f "$OUT"
 (cd "$STAGE" && zip -rq - eve-tree-team) > "$OUT"

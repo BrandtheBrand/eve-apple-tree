@@ -130,20 +130,33 @@ function poolMinGap(slots: PoolSlot[]): number {
   return m;
 }
 
+/* IGNORE LIST (v0.5.4) — folders that stay in the vault but off the tree. Obsidian's own "Excluded
+   files" setting would be the natural home, but it isn't in the public API, and reaching for the private
+   one risks a plugin-review rejection — so this is the plugin's own, explicit setting. */
+
+/** Split a user-typed list (one per line, or comma separated) into usable patterns. Blanks are DROPPED:
+ *  an empty pattern prefix-matches every path in the vault, which would silently blank the whole forest. */
+export function parseIgnore(raw: string | undefined): string[] {
+  return (raw ?? "").split(/[\n,]/).map((x) => x.trim().replace(/\/+$/, "").toLowerCase()).filter(Boolean);
+}
+
+/** Is this vault path inside one of the ignored folders (or the ignored file itself)? */
+export function isIgnored(path: string, patterns: string[]): boolean {
+  const p = path.toLowerCase();
+  return patterns.some((pat) => p === pat || p.startsWith(pat + "/"));
+}
+
 export interface EveSettings {
   onlyTreeNotes: boolean;     // when true, only render notes that carry tree frontmatter
+  ignoreFolders?: string;     // v0.5.4 — folders to keep in the vault but off the tree (one per line)
   forestByFolder: boolean;    // when true (default), each top-level folder is its own tree (D4)
   clusterLinkedDots: boolean; // when true (default), same-field linked dots cluster; others sit apart
   // F1 — user-dragged dot positions, stored in LOCAL coords (relative to the owning tree's origin),
   // keyed by vault path. Stale keys (renamed/deleted notes, or field changes) are dropped at load.
   dotPositions?: Record<string, { x: number; y: number; z: number }>;
-  // F5 (LEGACY, pre-0.5.1) — free-dragged tree origins in WORLD coords. Trees now live in grid cells, so
-  // this is read once to derive an initial `treeOrder` and then dropped. Kept in the type for that read.
+  // F5 — hand-placed tree origins in WORLD coords (x,z; trees sit at y=0), keyed by tree id. A tree with
+  // an entry stands exactly there, untouched by the layout; the rest are auto-placed (see autoOrigins).
   treeOrigins?: Record<string, { x: number; z: number }>;
-  // v0.5.1 — which tree stands in which cell, as tree ids in cell order. An ORDER, not coordinates: the
-  // arrangement is always a permutation of the grid, so it survives the grid resizing when a folder is
-  // added or removed. Dropping a tree on an occupied cell swaps the two entries.
-  treeOrder?: string[];
   // F2 — persisted panel/appearance state (all optional; defaults applied at read time)
   panelCollapsed?: boolean;   // control panel shrunk to a pill
   textSize?: number;          // label text scale multiplier (default 1)
@@ -381,109 +394,119 @@ export function treePoolPlacement(n: number): PoolLayout {
   return layoutPool(n, POOL_TREE_R_IN, POOL_TREE_R_OUT, POOL_Y, TREE_SPAN / 2 - 0.5);
 }
 
-/* TREE CELLS (v0.5.1) — every tree stands in a grid cell, always. Free-dragging let a tree be parked
-   anywhere, including so far out that the forest's fit distance ballooned and no zoom stop framed it
-   usefully any more. Cells are a fixed, bounded set: dropping a tree picks the nearest one, and if that
-   cell is taken the two trees SWAP. The arrangement is therefore always a permutation of the grid, which
-   is why it can be stored as an order of tree ids rather than as coordinates — and why it survives a tree
-   being added or removed. */
+/* TREE PLACEMENT (v0.5.3) — a tree goes where it is DROPPED. Drop it on empty ground and it stays there;
+   drop it on another tree and the two swap. Only trees the thinker has never moved are auto-placed, on a
+   checker grid around the reserved middle. (0.5.1 snapped every drop to a cell, which made the grid a cage
+   rather than a default — the arrangement is the thinker's, the grid is only what to do before they care.) */
 
-/** Index of the cell a drop at (x,z) belongs to. Always returns one: the grid is the only place to be. */
-export function nearestCellIndex(x: number, z: number, cells: { x: number; z: number }[]): number {
-  let best = 0, bestD = Infinity;
-  cells.forEach((c, i) => { const d = Math.hypot(c.x - x, c.z - z); if (d < bestD) { bestD = d; best = i; } });
+/** The tree a drop at (x,z) lands ON, if any — the swap partner. Null means empty ground: place it there. */
+export function swapTargetAt(x: number, z: number, dragged: string,
+  trees: { id: string; origin: { x: number; z: number } }[]): { id: string } | null {
+  let best: { id: string } | null = null, bestD = GROUND_FOOTPRINT_R * 1.6;   // "on" = inside its footprint
+  for (const t of trees) {
+    if (t.id === dragged) continue;
+    const d = Math.hypot(t.origin.x - x, t.origin.z - z);
+    if (d < bestD) { bestD = d; best = { id: t.id }; }
+  }
   return best;
-}
-
-/**
- * Default arrangement: trees joined by bridges are kept contiguous, so a linked pair lands in
- * neighbouring cells instead of opposite corners. Cells are handed out nearest-the-middle first, so
- * contiguous in this order means close together on the ground.
- */
-export function linkGroupedOrder(ids: string[], bridges: { from: string; to: string }[]): string[] {
-  const have = new Set(ids);
-  const adj = new Map<string, string[]>(ids.map((id) => [id, []]));
-  for (const b of bridges) {
-    if (!have.has(b.from) || !have.has(b.to) || b.from === b.to) continue;
-    adj.get(b.from)!.push(b.to); adj.get(b.to)!.push(b.from);
-  }
-  // largest cluster first so the most-connected topics take the cells closest to the middle
-  const seen = new Set<string>(), groups: string[][] = [];
-  for (const id of ids) {
-    if (seen.has(id)) continue;
-    const group: string[] = [], queue = [id]; seen.add(id);
-    while (queue.length) {
-      const cur = queue.shift()!; group.push(cur);
-      for (const nb of adj.get(cur)!) if (!seen.has(nb)) { seen.add(nb); queue.push(nb); }
-    }
-    groups.push(group);
-  }
-  groups.sort((a, b) => b.length - a.length);
-  return groups.flat();
 }
 
 /** Connected components of the bridge graph, largest first — the clusters that want to share ground. */
 export function treeGroups(ids: string[], bridges: { from: string; to: string }[]): string[][] {
-  const order = linkGroupedOrder(ids, bridges), have = new Set(ids);
+  const have = new Set(ids);
   const adj = new Map<string, Set<string>>(ids.map((id) => [id, new Set()]));
   for (const b of bridges) {
     if (!have.has(b.from) || !have.has(b.to) || b.from === b.to) continue;
     adj.get(b.from)!.add(b.to); adj.get(b.to)!.add(b.from);
   }
   const seen = new Set<string>(), out: string[][] = [];
-  for (const id of order) {
+  for (const id of ids) {
     if (seen.has(id)) continue;
     const g: string[] = [], q = [id]; seen.add(id);
     while (q.length) { const c = q.shift()!; g.push(c); for (const nb of adj.get(c)!) if (!seen.has(nb)) { seen.add(nb); q.push(nb); } }
     out.push(g);
   }
-  return out;
+  return out.sort((a, b) => b.length - a.length);
 }
 
 /**
- * Lay groups onto cells so each group occupies ONE compact patch of ground — "the same area", which is
- * what a bridge between two topics means spatially. Consecutive cell indices are NOT enough: the inner
- * ring around the reserved middle has four cells 90 degrees apart, so neighbours in the index are on
- * opposite sides of the pool. Each group instead seeds at the most central free cell and then takes the
- * free cell nearest its own running centre, which keeps it together whatever shape the grid is.
- * Returns tree ids in CELL order (result[i] stands in cells[i]).
+ * Where every tree stands. Hand-placed trees keep their exact position, untouched. The rest are laid onto
+ * grid cells, group by group, so trees joined by a bridge share a patch of ground — and a group that
+ * contains a hand-placed tree starts NEXT TO IT rather than in the middle of the forest.
+ *
+ * Groups are computed over ALL trees, hand-placed included. Computing them over only the auto set (the
+ * 0.5.1 bug) silently dropped every bridge with one end already placed: dragging one tree once was enough
+ * to leave its partner ungrouped on the far side of the forest.
  */
-export function arrangeOnCells(groups: string[][], cells: { x: number; z: number }[]): (string | null)[] {
-  const out: (string | null)[] = cells.map(() => null);
-  const free = new Set(cells.map((_, i) => i));
-  const takeNearest = (px: number, pz: number): number => {
-    let best = -1, bestD = Infinity;
-    for (const i of free) { const d = Math.hypot(cells[i].x - px, cells[i].z - pz); if (d < bestD) { bestD = d; best = i; } }
-    free.delete(best); return best;
+export function autoOrigins(ids: string[], hand: Record<string, { x: number; z: number }>,
+  bridges: { from: string; to: string }[], seedCount: number): Record<string, { x: number; z: number }> {
+  const out: Record<string, { x: number; z: number }> = {};
+  const isHand = (id: string) => !!hand[id] && typeof hand[id].x === "number" && typeof hand[id].z === "number";
+  const taken: { x: number; z: number }[] = [];
+  for (const id of ids) if (isHand(id)) { out[id] = { x: hand[id].x, z: hand[id].z }; taken.push(out[id]); }
+
+  const auto = ids.filter((id) => !isHand(id));
+  if (!auto.length) return out;
+
+  const SEP = GROUND_FOOTPRINT_R * 2, inner = poolClearing(seedCount) + GROUND_FOOTPRINT_R;
+  const free = (x: number, z: number) =>
+    Math.hypot(x, z) >= inner && taken.every((t) => Math.hypot(t.x - x, t.z - z) >= SEP);
+  const claim = (c: { x: number; z: number }) => { taken.push(c); return c; };
+
+  /** Nearest free spot to (px,pz) on a TREE_SPAN lattice anchored THERE — used to gather a group beside
+   *  a tree the thinker placed by hand, which is nowhere near the grid. */
+  const spiralFrom = (px: number, pz: number): { x: number; z: number } | null => {
+    if (free(px, pz)) return { x: px, z: pz };
+    for (let r = 1; r <= 40; r++) {
+      const ring: { x: number; z: number }[] = [];
+      for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+        ring.push({ x: px + dx * TREE_SPAN, z: pz + dz * TREE_SPAN });
+      }
+      ring.sort((a, b) => Math.hypot(a.x - px, a.z - pz) - Math.hypot(b.x - px, b.z - pz));
+      for (const c of ring) if (free(c.x, c.z)) return c;
+    }
+    return null;
   };
-  for (const group of groups) {
-    if (!free.size) break;
-    let sx = 0, sz = 0, n = 0;
-    for (const id of group) {
-      if (!free.size) break;
-      const i = n === 0 ? takeNearest(0, 0) : takeNearest(sx / n, sz / n);   // seed centrally, then hug the group
-      out[i] = id; sx += cells[i].x; sz += cells[i].z; n++;
+
+  // cells for groups with no hand-placed member: the checker grid around the reserved middle
+  const cells = gridOrigins(auto.length + taken.length + 4, seedCount);
+  const cellFree = new Set(cells.map((_, i) => i));
+  const takeCell = (px: number, pz: number): { x: number; z: number } | null => {
+    let best = -1, bestD = Infinity;
+    for (const i of cellFree) {
+      const c = cells[i]; if (!free(c.x, c.z)) { cellFree.delete(i); continue; }
+      const d = Math.hypot(c.x - px, c.z - pz); if (d < bestD) { bestD = d; best = i; }
+    }
+    if (best < 0) return null;
+    cellFree.delete(best); return cells[best];
+  };
+
+  for (const group of treeGroups(ids, bridges)) {
+    const members = group.filter((id) => !isHand(id));
+    if (!members.length) continue;
+    // a group holding a hand-placed tree gathers AROUND it; otherwise it takes grid cells near the middle
+    const anchors = group.filter(isHand).map((id) => out[id]);
+    let sx = anchors.reduce((a, p) => a + p.x, 0), sz = anchors.reduce((a, p) => a + p.z, 0), n = anchors.length;
+    for (const id of members) {
+      const cx = n === 0 ? 0 : sx / n, cz = n === 0 ? 0 : sz / n;
+      const c = (anchors.length ? spiralFrom(cx, cz) : takeCell(cx, cz)) ?? spiralFrom(cx, cz);
+      if (!c) break;
+      out[id] = claim(c); sx += c.x; sz += c.z; n++;
     }
   }
+  for (const id of auto) if (!out[id]) out[id] = claim(spiralFrom(0, 0) ?? { x: 0, z: 0 });
   return out;
 }
 
-/**
- * The order cells are handed out in: the thinker's saved arrangement where there is one, with trees it
- * doesn't mention appended in link-grouped order. Entries for trees that no longer exist are dropped
- * WITHOUT re-packing the rest, so deleting one folder doesn't shuffle the whole forest.
- */
-export function resolveTreeOrder(ids: string[], saved: string[] | undefined, bridges: { from: string; to: string }[],
-  cells?: { x: number; z: number }[]): string[] {
-  const have = new Set(ids);
-  const kept = (saved ?? []).filter((id) => have.has(id));
-  const seen = new Set(kept);
-  const rest = ids.filter((id) => !seen.has(id));
-  if (!kept.length && cells) {
-    // nothing saved: lay the whole forest out by link groups, each on its own patch of ground
-    return arrangeOnCells(treeGroups(ids, bridges), cells).filter((x): x is string => x !== null);
+/** Thin a set of screen labels so none overlaps another; the nearest to the camera wins a contest. */
+export function pickNonOverlapping<T extends { sx: number; sy: number; dist: number }>(items: T[], minDist: number): T[] {
+  const kept: T[] = [];
+  for (const it of [...items].sort((a, b) => a.dist - b.dist)) {
+    if (kept.some((k) => Math.hypot(k.sx - it.sx, k.sy - it.sy) < minDist)) continue;
+    kept.push(it);
   }
-  return [...kept, ...linkGroupedOrder(rest, bridges)];
+  return kept;
 }
 
 /** Radius of ground the forest pool needs kept clear of any trunk, for a given seed count. */

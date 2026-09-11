@@ -6,6 +6,7 @@ const DEFAULT_SETTINGS: EveSettings = {
   onlyTreeNotes: true,
   forestByFolder: true,
   clusterLinkedDots: true,
+  ignoreFolders: "",
 };
 
 export default class EveApplePlugin extends Plugin {
@@ -76,6 +77,16 @@ class EveSettingTab extends PluginSettingTab {
         t.setValue(this.plugin.settings.forestByFolder)
           .onChange(async (v) => { this.plugin.settings.forestByFolder = v; await this.plugin.saveSettings(); })
       );
+
+    new Setting(containerEl)
+      .setName("Folders to keep off the tree")
+      .setDesc("One folder per line (or comma separated). Those notes stay in your vault and stay editable — they just don't become dots, seeds, bridges, or a tree of their own. Use it for template packs, archives, or anything you keep nearby but aren't thinking about. Click 'Reload my notes' in the view after changing.")
+      .addTextArea((t) => {
+        t.setPlaceholder("Templates/\nArchive/")
+          .setValue(this.plugin.settings.ignoreFolders ?? "")
+          .onChange(async (v) => { this.plugin.settings.ignoreFolders = v; await this.plugin.saveSettings(); });
+        t.inputEl.rows = 3;
+      });
 
     new Setting(containerEl)
       .setName("Cluster linked dots")

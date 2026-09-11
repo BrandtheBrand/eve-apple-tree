@@ -1,3 +1,4 @@
+import { copyFileSync, existsSync } from "node:fs";
 import esbuild from "esbuild";
 import process from "process";
 import { builtinModules } from "node:module";
@@ -35,7 +36,21 @@ const context = await esbuild.context({
 
 if (prod) {
   await context.rebuild();
+  syncStarterVault();
   process.exit(0);
 } else {
   await context.watch();
+}
+
+/**
+ * The starter vault bundles its own copy of the plugin so a beginner can open it and see a tree with no
+ * install step. That copy went two versions stale unnoticed, and a stale bundle silently ignores whatever
+ * settings the newer version reads — so the release build refreshes it every time rather than trusting
+ * anyone to remember. (test/starter-vault.test.ts asserts the two versions match.)
+ */
+function syncStarterVault() {
+  const dest = "eve-thinking-system/starter-vault/.obsidian/plugins/eve-apple-tree";
+  if (!existsSync(dest)) return;
+  for (const f of ["main.js", "manifest.json", "styles.css", "versions.json"]) copyFileSync(f, `${dest}/${f}`);
+  console.log(`[build] refreshed the starter vault's bundled plugin -> ${dest}`);
 }
