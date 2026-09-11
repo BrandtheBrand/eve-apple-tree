@@ -53,3 +53,21 @@ test("labels that would sit on top of each other are thinned, nearest kept", () 
   const kept = pickNonOverlapping(items, 60).map((i) => i.id);
   assert.deepEqual(kept.sort(), ["clear", "near"], "the overlapping far label was not dropped");
 });
+
+test("a corrupt saved position is ignored, not copied into the scene", () => {
+  // typeof NaN === "number", so a `typeof x === "number"` check waves NaN straight through — and three.js
+  // renders a NaN position as nothing at all, silently. Same class as a blank ignore pattern blanking the
+  // forest: a damaged setting must never be able to erase a tree.
+  const junk = {
+    nanX: { x: NaN, z: 0 }, infZ: { x: 0, z: Infinity },
+    missing: { x: 1 } as unknown as { x: number; z: number },
+    stringy: { x: "40" as unknown as number, z: 0 },
+  };
+  const ids = ["nanX", "infZ", "missing", "stringy", "clean"];
+  const placed = autoOrigins(ids, { ...junk, clean: { x: 48, z: -16 } }, [], 17);
+  for (const id of ids) {
+    assert.ok(Number.isFinite(placed[id].x) && Number.isFinite(placed[id].z),
+      `${id} was placed at a non-finite position`);
+  }
+  assert.deepEqual(placed.clean, { x: 48, z: -16 }, "a good hand position was thrown away with the bad ones");
+});

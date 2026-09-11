@@ -45,7 +45,10 @@ export const ROLE: Record<TreeType, { tint: string; ring: string; r: number; glo
   root:   { tint: "#a98f5e", ring: "#6f5a32", r: 0.54 },
   flower: { tint: "#cf8aa3", ring: "#9c5572", r: 0.40, glow: "#ff9ec2" },
   apple:  { tint: "#d77f72", ring: "#a14b3f", r: 0.42, glow: "#ff8a76" },
-  seed:   { tint: "#6fbf5a", ring: "#3f7a33", r: 0.46, glow: "#9dff84" },   // green + lit: the seeds are the only light in a matte brown pool
+  // Green body on a brown pool is a weak pairing on its own (1.3:1 in light theme), so the RING carries the
+  // legibility: dark enough to outline the dot against both pool tints, which keeps the colours as specified
+  // instead of compromising the green or lightening the brown. See test/legibility.test.ts.
+  seed:   { tint: "#6fbf5a", ring: "#162f11", r: 0.46, glow: "#9dff84" },
 };
 
 /* SEED POOL (v0.5.0) — seeds are pending topics: they sit in a pool on the ground, not on the tree.
@@ -263,9 +266,15 @@ export function placeNodes(allNodes: EveNode[], K: number): void {
   // so they are excluded here (including from the time normalisation) and pooled separately.
   const nodes = allNodes.filter((n) => n.treeType !== "seed");
   if (!nodes.length) return;
-  const times = nodes.map((n) => n.time);
-  const tMin = Math.min(...times), tMax = Math.max(...times), span = (tMax - tMin) || 1;
-  for (const n of nodes) n.tNorm = (n.time - tMin) / span;
+  // A single non-finite `time` (YAML `.nan`, or an impossible date like 2026-13-45) poisons tMin/tMax and
+  // sends EVERY dot in the tree to a non-finite position — which three.js draws as nothing at all, with no
+  // error. One bad note must not be able to blank a tree, so broken times are excluded from the range and
+  // then read as the oldest.
+  const times = nodes.map((n) => n.time).filter(Number.isFinite);
+  const tMin = times.length ? Math.min(...times) : 0;
+  const tMax = times.length ? Math.max(...times) : 0;
+  const span = (tMax - tMin) || 1;
+  for (const n of nodes) n.tNorm = Number.isFinite(n.time) ? (n.time - tMin) / span : 0;
 
   const GA = 2.39996323, MINGAP = 0.52;     // golden angle; min vertical gap (> dot diameter 0.42)
   const relax = (hs: number[], lo: number, hi: number): number[] => {
@@ -290,7 +299,8 @@ export function placeNodes(allNodes: EveNode[], K: number): void {
     groups.get(key)!.push(n);
   }
   // central spine — trunks fanned around the axis (golden angle) + heights relaxed apart
-  const axis = (groups.get("_axis") || []).sort((a, b) => a.time - b.time || (a.id < b.id ? -1 : 1));
+  const cmp = (a: EveNode, b: EveNode) => (Number.isFinite(a.time) ? a.time : -Infinity) - (Number.isFinite(b.time) ? b.time : -Infinity) || (a.id < b.id ? -1 : 1);
+  const axis = (groups.get("_axis") || []).sort(cmp);
   {
     const hs = relax(axis.map((n) => 0.6 + n.tNorm * (H - 0.8)), 0.6, H - 0.4);
     axis.forEach((n, i) => { n.pos = new THREE.Vector3(Math.cos(i * GA) * 0.22, hs[i], Math.sin(i * GA) * 0.22); });
@@ -301,7 +311,7 @@ export function placeNodes(allNodes: EveNode[], K: number): void {
     const fi = key as number;
     const a0 = angleOf(fi, K) + SEC_PAD + WEDGE_INSET, a1 = angleOf(fi + 1, K) - SEC_PAD - WEDGE_INSET;
     const aw = a1 > a0 ? a1 - a0 : (Math.PI * 2 / K) * 0.8;   // K>=20: pads eat the wedge; fall back to an equal share of the circle instead of a collapsed/negative wedge
-    leaves.sort((a, b) => a.time - b.time || (a.id < b.id ? -1 : 1));
+    leaves.sort(cmp);
     const hs = relax(leaves.map((n) => 0.7 + n.tNorm * (H - 1.2)), 0.7, H - 0.5);
     leaves.forEach((n, i) => {
       const h = hs[i], canopy = 0.30 + 0.70 * (h / H);
@@ -441,7 +451,9 @@ export function treeGroups(ids: string[], bridges: { from: string; to: string }[
 export function autoOrigins(ids: string[], hand: Record<string, { x: number; z: number }>,
   bridges: { from: string; to: string }[], seedCount: number): Record<string, { x: number; z: number }> {
   const out: Record<string, { x: number; z: number }> = {};
-  const isHand = (id: string) => !!hand[id] && typeof hand[id].x === "number" && typeof hand[id].z === "number";
+  // Number.isFinite, not typeof === "number": NaN and Infinity are both "number", and a non-finite
+  // position renders as nothing at all in three.js — a damaged setting would silently erase a tree.
+  const isHand = (id: string) => !!hand[id] && Number.isFinite(hand[id].x) && Number.isFinite(hand[id].z);
   const taken: { x: number; z: number }[] = [];
   for (const id of ids) if (isHand(id)) { out[id] = { x: hand[id].x, z: hand[id].z }; taken.push(out[id]); }
 
@@ -615,9 +627,14 @@ const STOP_APART = 1.05;            // two stops closer than this ratio are the 
 export function zoomStops(fitAll: number, three: number, one: number): ZoomStop[] {
   const d: Record<ZoomLevel, number> = { forest: fitAll, three, tree: one, leaf: one * LEAF_OF_TREE };
   const out: ZoomStop[] = ZOOM_LEVELS.map((level) => ({ level, d: d[level], reachable: false }));
-  let nearest = 0;   // walk near -> far; each stop must be meaningfully further out than the last live one
+  // Walk near -> far; each stop must be meaningfully further out than the last live one. The NEAREST stop
+  // is always reachable, whatever the numbers say: there is always somewhere the camera is. Deriving that
+  // from the distances instead left every stop dead when a scene measured out degenerate (all zeros), and
+  // nearestStop — which runs once per frame inside the rAF loop — then read past an empty array and killed
+  // the loop, freezing the view for good.
+  let nearest = 0;
   for (let i = out.length - 1; i >= 0; i--) {
-    if (out[i].d > nearest * STOP_APART) { out[i].reachable = true; nearest = out[i].d; }
+    if (i === out.length - 1 || out[i].d > nearest * STOP_APART) { out[i].reachable = true; nearest = out[i].d; }
   }
   return out;
 }
@@ -626,6 +643,7 @@ export function zoomStops(fitAll: number, three: number, one: number): ZoomStop[
  *  the stops are spread geometrically. Never returns an unreachable stop. */
 export function nearestStop(d: number, stops: ZoomStop[]): ZoomLevel {
   const live = stops.filter((s) => s.reachable);
+  if (!live.length) return "leaf";                  // belt as well as braces: this runs every frame
   let best = live[live.length - 1], bestErr = Infinity;
   for (const s of live) {
     const err = Math.abs(Math.log(Math.max(d, 1e-6) / s.d));
@@ -649,6 +667,11 @@ export interface Lod {
 }
 
 const smooth = (a: number, b: number, x: number): number => {
+  // A degenerate band (a === b, or non-finite inputs from a scene measured before anything is placed)
+  // divides by zero and hands NaN to every opacity downstream — and three.js renders NaN as nothing at
+  // all, silently. Collapse it to a hard step instead.
+  if (!Number.isFinite(a) || !Number.isFinite(b) || !Number.isFinite(x)) return 0;
+  if (b === a) return x >= b ? 1 : 0;
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
 };

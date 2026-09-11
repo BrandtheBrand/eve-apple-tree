@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { zoomStops, nearestStop, ZOOM_LEVELS, type ZoomLevel } from "../src/layout.ts";
+import { zoomStops, nearestStop, lodAt, ZOOM_LEVELS, type ZoomLevel } from "../src/layout.ts";
 
 // representative framing distances measured the way the view measures them (fit-all / 3 trees / 1 tree)
 const FORESTS = {
@@ -36,4 +36,19 @@ test("stops run far to near, in the order the scale draws them", () => {
   const stops = zoomStops(FORESTS.ten.fitAll, FORESTS.ten.three, FORESTS.ten.one);
   assert.deepEqual(stops.map((s) => s.level), ZOOM_LEVELS satisfies ZoomLevel[]);
   for (let i = 1; i < stops.length; i++) assert.ok(stops[i].d < stops[i - 1].d, `stop ${stops[i].level} is not nearer than ${stops[i - 1].level}`);
+});
+
+test("the scale always has somewhere to be, however degenerate the scene", () => {
+  // nearestStop runs once per frame inside the rAF loop: if it ever throws, the loop dies and the
+  // view freezes for good. Degenerate framing distances (a scene measured before anything is placed)
+  // left every stop unreachable and it read past the end of an empty array.
+  for (const args of [[0, 0, 0], [-1, -1, -1], [0, 1, 2], [NaN, NaN, NaN]] as [number, number, number][]) {
+    const stops = zoomStops(...args);
+    assert.equal(stops.length, 4, `zoomStops(${args}) lost a stop`);
+    assert.ok(stops.some((s) => s.reachable), `zoomStops(${args}) left the scale with nowhere to be`);
+    assert.doesNotThrow(() => nearestStop(args[0], stops), `nearestStop threw on ${args}`);
+    const lod = lodAt(args[0], stops);
+    for (const [k, v] of Object.entries(lod))
+      assert.ok(Number.isFinite(v), `lodAt(${args}) produced a non-finite ${k}`);
+  }
 });

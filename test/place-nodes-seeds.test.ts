@@ -29,3 +29,27 @@ test("a seed's date cannot stretch the tree's time axis", () => {
   for (let i = 0; i < without.length; i++)
     assert.equal(withSeed[i].tNorm, without[i].tNorm, `leaf ${without[i].id} moved because a seed had a date`);
 });
+
+test("one note with a broken date cannot blank the whole tree", () => {
+  // `time: .nan` in YAML, or an impossible date like 2026-13-45, yields NaN. tMin/tMax are computed
+  // across every node, so a single NaN poisons the normalisation and EVERY dot lands at a non-finite
+  // position — which three.js draws as nothing. One bad note, one invisible tree, no error message.
+  for (const poison of [NaN, Infinity, -Infinity]) {
+    const nodes = [
+      node("good-a", "leaf", 0, 19000),
+      node("broken", "leaf", 0, poison),
+      node("good-b", "leaf", 0, 19100),
+    ];
+    placeNodes(nodes, 1);
+    for (const n of nodes)
+      assert.ok(Number.isFinite(n.pos.x) && Number.isFinite(n.pos.y) && Number.isFinite(n.pos.z),
+        `a ${poison} time left ${n.id} at a non-finite position`);
+    assert.ok(nodes.every((n) => Number.isFinite(n.tNorm)), `a ${poison} time produced a non-finite tNorm`);
+  }
+});
+
+test("a tree made entirely of broken dates still draws", () => {
+  const nodes = [node("a", "leaf", 0, NaN), node("b", "leaf", 0, NaN)];
+  placeNodes(nodes, 1);
+  for (const n of nodes) assert.ok(Number.isFinite(n.pos.y), `${n.id} is at a non-finite height`);
+});

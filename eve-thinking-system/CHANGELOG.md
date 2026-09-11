@@ -4,6 +4,41 @@ Reverse-chronological. Each entry: what changed, why, and (for incidents) the ru
 
 ---
 
+## 2026-09-11 — Third audit: the crashes and blanks nobody had looked for (v0.5.6)
+
+The first two audits read documents. This one executed the code against deliberately hostile input, timed
+the hot paths, and checked the published bytes. It found four defects that no amount of reading would have
+surfaced, three of them capable of silently emptying the view.
+
+**A crash in the render loop.** `nearestStop` runs once per frame. Given a scene whose framing distances
+measured out degenerate, `zoomStops` marked every stop unreachable and `nearestStop` read past the end of
+an empty array. An exception inside requestAnimationFrame does not recover: the loop dies and the view
+freezes for good. The nearest stop is now always reachable by construction — there is always somewhere the
+camera is — with a guard behind it.
+
+**NaN, which three.js renders as nothing at all, with no error.** Three sources, all fixed: a degenerate
+level-of-detail band divided by zero; `typeof x === "number"` accepted NaN and Infinity from a saved
+position (they are both "number"), so a damaged setting could erase a tree; and — the worst — a single note
+with `time: .nan` or an impossible date like `2026-13-45` poisoned the tree's height normalisation, sending
+EVERY dot in that tree to a non-finite position. One bad note, one invisible tree, no message. Guarded at
+both the parse and the layout layer.
+
+**Seeds were not legible in their own pool.** Measured rather than eyeballed: green on light brown reaches
+1.3:1, and every layer of the dot sat under 3:1. The colours are as specified and stay that way — the RING
+now carries the legibility (4.95:1 light, 3.08:1 dark), which is what makes a small dot readable on a
+mid-tone ground. `test/legibility.test.ts` asserts it, and that the seed stays green and the pool brown.
+
+**Performance, measured for the first time.** A real 690-dot vault lays out in 28.9 ms — imperceptible. The
+per-frame paths are all under 0.06 ms. The documented guards hold exactly where they claim (clustering
+skips above 500 leaves and at 20+ fields). `autoOrigins` is the one path that scales poorly — 89 ms at 100
+trees, 543 ms at 200 — which is a rebuild-only cost at a forest size nobody has, and is recorded here
+rather than optimised on speculation.
+
+Also: the pool's shared geometry is allocated lazily, so a vault with no seeds no longer leaks one
+unattached geometry per reload.
+
+---
+
 ## 2026-09-11 — The rename that wasn't finished (v0.5.5)
 
 A second verification pass, run against the code rather than against the previous pass's notes, found the

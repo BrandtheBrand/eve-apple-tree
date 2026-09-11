@@ -22,8 +22,11 @@ function asTreeType(v: unknown): TreeType {
 }
 
 function parseTime(v: unknown, fallbackDays: number): number {
-  if (v instanceof Date) return v.getTime() / 86400000;   // Obsidian's YAML can hand back Date objects for unquoted dates
-  if (typeof v === "number") return v;
+  // Both of these can yield NaN — an impossible date (2026-13-45) parses to an Invalid Date, and YAML's
+  // `.nan` is a genuine number. A non-finite time poisons the whole tree's height normalisation, so it is
+  // treated as "no date given" and falls back to the file's creation time.
+  if (v instanceof Date) { const d = v.getTime() / 86400000; return Number.isFinite(d) ? d : fallbackDays; }
+  if (typeof v === "number") return Number.isFinite(v) ? v : fallbackDays;
   if (typeof v === "string" && v.trim()) {
     const t = Date.parse(v);
     if (!isNaN(t)) return t / 86400000; // days since epoch
@@ -205,7 +208,7 @@ export async function buildForest(app: App, settings: EveSettings): Promise<EveF
     const saved = settings.dotPositions || {};
     for (const n of nodes) {
       const s = saved[n.id];
-      if (!s || typeof s.x !== "number" || typeof s.y !== "number" || typeof s.z !== "number") continue;
+      if (!s || !Number.isFinite(s.x) || !Number.isFinite(s.y) || !Number.isFinite(s.z)) continue;   // NaN/Infinity are "number" too, and render as nothing
       // F4: only field dots are draggable. Root/trunk aren't, and a note whose `field` property changed
       // must lay out fresh — so drop any saved entry that no longer falls in the node's CURRENT field
       // wedge (changing the note's field is the only sanctioned way to move a dot between fields).

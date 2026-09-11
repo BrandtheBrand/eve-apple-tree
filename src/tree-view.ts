@@ -444,11 +444,13 @@ export class EveTreeView extends ItemView {
 
   /** v0.5.0 — the discs the seeds float in: one at each tree's foot, one shared pool on the forest floor. */
   private buildPools() {
-    const geo = new THREE.PlaneGeometry(2, 2);
+    // created on first use, not up front: a vault with no seeds at all would otherwise allocate a geometry
+    // on every reload that is never attached to the scene, and so is never reached by dispose's traverse.
+    let geo: THREE.PlaneGeometry | undefined;
     const tint = this.themeDark ? POOL_TINT.dark : POOL_TINT.light;
     const disc = (x: number, z: number, r: number): THREE.Mesh => {
       const mat = new THREE.MeshBasicMaterial({ map: this.poolTexture(), color: new THREE.Color(tint), transparent: true, depthWrite: false, fog: true, opacity: 0 });
-      const m = new THREE.Mesh(geo, mat);
+      const m = new THREE.Mesh((geo ??= new THREE.PlaneGeometry(2, 2)), mat);
       m.rotation.x = -Math.PI / 2;          // lie flat on the ground — a sprite can't, it always faces the camera
       m.position.set(x, 0.01, z); m.scale.set(r, r, 1);
       this.G.pools.add(m); this.poolMats.push(mat);
