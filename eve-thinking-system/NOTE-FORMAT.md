@@ -8,7 +8,7 @@ Every note carries a little **YAML frontmatter** so the 3D tree can place it and
 
 ```yaml
 ---
-tree_type: leaf          # root | trunk | leaf | flower | apple   (required)
+tree_type: leaf          # root | trunk | leaf | flower | apple | seed   (required)
 field: Researcher        # the lens/sector this lives in          (leaves/flowers/apples; omit for root & trunk)
 time: 2026-06-26         # ISO date or ordinal → vertical (TIME) position (required)
 flower: false            # true marks an Ah-ha (also set tree_type: flower)
@@ -21,12 +21,31 @@ title: One note, one idea           # optional; defaults to the file name
 
 | Key | Values | Drives | Notes |
 |---|---|---|---|
-| `tree_type` | `root` `trunk` `leaf` `flower` `apple` | the dot's role/style | the only required *kind* |
+| `tree_type` | `root` `trunk` `leaf` `flower` `apple` `seed` | the dot's role/style | the only required *kind* |
 | `field` | a lens name (`Researcher`, `Maker`, `Critic`, `Storyteller`, or your own) | the angular **sector** (X/Z) | omit for `root`/`trunk` (they sit on the central axis) |
 | `time` | ISO date `2026-06-26` or an integer ordinal | the **height** (Y): old=low, new=high | usually the note's creation/insight date |
 | `flower` | `true` / `false` | marks durable Ah-ha memory | a flower note: `tree_type: flower` + `flower: true` |
 | `apple` | `[[wikilink]]` to the output | links thinking → product | set on the leaf/flower that produced an apple |
 | `title` | text | label shown in the 3D view | optional; file name is the fallback |
+
+### Seeds — the one dot that isn't on the tree
+
+A **seed** is a topic you have *not opened yet*: a door, not an idea. It needs only a title.
+
+```yaml
+---
+tree_type: seed
+field: Researcher    # OPTIONAL — see below
+---
+```
+
+- **No `time`.** A seed has no place on the time axis because it hasn't happened yet. Write one and it's ignored.
+- **`field` decides which pool it falls into** — nothing else. *With* a field, the seed pools at that tree's foot: it's an unopened branch of a topic you're already growing. *Without* one, it drifts to the shared **forest pool**: an unopened topic that belongs to no tree yet.
+- **A seed never opens a field wedge.** An unopened topic must not draw an empty sector, so its `field` is a label, not a coordinate.
+- **Seeds are quiet.** They carry no automatic label on the 3D view — point at one and it names itself, move away and it's gone. A pool you can ignore is a pool you'll actually keep filling.
+- **Links to a seed always read faint.** A thread to a door you haven't opened is a loose one, never structural.
+
+A seed leaves the pool in one of two ways: it **germinates** (you open it — it becomes a trunk or a leaf with a real `time`) or it **composts** (you decide it doesn't matter). Both are the thinker's call.
 
 ### The body = the rhizome
 

@@ -2,10 +2,10 @@ import { App, TFile, Notice } from "obsidian";
 import * as THREE from "three";
 import {
   EveNode, EveEdge, EveTree, EveBridge, EveForest, EveSettings, View, TreeType,
-  placeNodes, clusterRelax, insideWedge, TREE_SPAN,
+  placeNodes, clusterRelax, insideWedge, treePoolPlacement, forestPoolPlacement, gridOrigins, resolveTreeOrder,
 } from "./layout";
 
-const TREE_TYPES: TreeType[] = ["root", "trunk", "leaf", "flower", "apple"];
+const TREE_TYPES: TreeType[] = ["root", "trunk", "leaf", "flower", "apple", "seed"];
 
 /** Frontmatter values are `unknown` (YAML can hand back almost anything); only stringify primitives
  *  so a stray object/array in a note's frontmatter degrades to "" instead of "[object Object]". */
@@ -82,6 +82,26 @@ function parseBodyViews(content: string): View[] | undefined {
 }
 
 /**
+ * Carry a pre-0.5.1 free-dragged arrangement into the cell grid: trees keep their rough relative places
+ * by being read off in the same sweep the grid hands cells out (outward, then around). It is an
+ * approximation of a hand layout, not a reproduction of it — which is the honest thing a snap-to-grid
+ * can offer, and better than discarding the arrangement outright.
+ */
+function legacyOrder(trees: EveTree[], settings: EveSettings): string[] | undefined {
+  const saved = settings.treeOrigins;
+  if (!saved) return undefined;
+  const placed = trees.map((t) => t.id).filter((id) => saved[id] && typeof saved[id].x === "number");
+  if (!placed.length) return undefined;
+  const cx = placed.reduce((a, id) => a + saved[id].x, 0) / placed.length;
+  const cz = placed.reduce((a, id) => a + saved[id].z, 0) / placed.length;
+  return placed.sort((a, b) => {
+    const A = saved[a], B = saved[b];
+    return Math.hypot(A.x - cx, A.z - cz) - Math.hypot(B.x - cx, B.z - cz)
+      || Math.atan2(A.z - cz, A.x - cx) - Math.atan2(B.z - cz, B.x - cx);
+  });
+}
+
+/**
  * Build the FOREST from the vault (D4). One top-level folder = one tree; each tree is independent
  * (its own fields, trunk, R8 layout, and movable origin). Cross-tree connections exist ONLY through
  * bridge files. A single-folder / flat vault yields one tree (back-compatible).
@@ -143,9 +163,12 @@ export async function buildForest(app: App, settings: EveSettings): Promise<EveF
       const fm = cache?.frontmatter ?? {};
       const treeType = asTreeType(fm["tree_type"] ?? (fm["flower"] ? "flower" : undefined));
       const onAxis = treeType === "root" || treeType === "trunk";
+      const isSeed = treeType === "seed";
       const fieldNameRaw = fm["field"] != null ? String(fm["field"]).trim() : "";
-      const fieldName = onAxis ? null : (fieldNameRaw || "Unfiled");
-      const field = fieldName ? ensureField(fieldName) : -1;
+      // A seed never opens a field wedge — an unopened topic must not draw an empty sector. Its `field`
+      // decides only which pool it falls into (and what its card shows), so it keeps the name, not an index.
+      const fieldName = onAxis ? null : (isSeed ? (fieldNameRaw || null) : (fieldNameRaw || "Unfiled"));
+      const field = (fieldName && !isSeed) ? ensureField(fieldName) : -1;
 
       let description = typeof fm["description"] === "string" ? fm["description"] : "";
       let views = parseFmViews(fm["views"]);
@@ -166,6 +189,7 @@ export async function buildForest(app: App, settings: EveSettings): Promise<EveF
         time: parseTime(fm["time"], file.stat.ctime / 86400000),
         views, tNorm: 0, pos: new THREE.Vector3(),   // placeholder — placeNodes() overwrites this before it's ever read
       };
+      if (isSeed) node._pool = fieldName ? "tree" : "forest";
       nodes.push(node); byId.set(file.path, node);
     }
 
@@ -178,7 +202,9 @@ export async function buildForest(app: App, settings: EveSettings): Promise<EveF
         const b = byId.get(dest); if (!b || a === b) continue;          // same-tree only
         const aAxis = a.field < 0, bAxis = b.field < 0;
         let kind: EveEdge["kind"];
-        if (aAxis && bAxis) kind = "spine";
+        // a thread to a door you haven't opened is a loose one — never structural
+        if (a.treeType === "seed" || b.treeType === "seed") kind = "rhizome";
+        else if (aAxis && bAxis) kind = "spine";
         else if (aAxis || bAxis) kind = "branch";
         else if (a.field === b.field) kind = "intra";
         else kind = "rhizome";
@@ -211,7 +237,16 @@ export async function buildForest(app: App, settings: EveSettings): Promise<EveF
     const topic = key === "(root)" ? vaultName : (key === "(all)" ? vaultName : key);
     if (settings.clusterLinkedDots !== false && leafCount > 500) skippedClustering.push(topic);
 
-    const tree: EveTree = { id: key, topic, origin: { x: 0, z: 0 }, nodes, edges, fields: fieldOrder, byId, incoming, cast };
+    // v0.5.0 — seeds carrying a field pool at THIS tree's foot (local coords, offset to world below).
+    const footSeeds = nodes.filter((n) => n._pool === "tree");
+    let pool: EveTree["pool"];
+    if (footSeeds.length) {
+      const pl = treePoolPlacement(footSeeds.length);
+      footSeeds.forEach((n, i) => n.pos.set(pl.slots[i].x, pl.slots[i].y, pl.slots[i].z));
+      pool = { rIn: pl.rIn, rOut: pl.rOut };
+    }
+
+    const tree: EveTree = { id: key, topic, origin: { x: 0, z: 0 }, nodes, edges, fields: fieldOrder, byId, incoming, cast, pool };
     for (const n of nodes) n.tree = tree;
     trees.push(tree);
   }
@@ -223,17 +258,34 @@ export async function buildForest(app: App, settings: EveSettings): Promise<EveF
   // origin keep their auto row slot at their original sorted index — simplest honest rule: moving one tree
   // doesn't re-pack the row, so a dragged tree can end up overlapping an auto-placed one (documented, not fixed).
   trees.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  const savedOrigins = settings.treeOrigins || {};
-  trees.forEach((t, i) => {
-    const saved = savedOrigins[t.id];
-    t.origin = (saved && typeof saved.x === "number" && typeof saved.z === "number")
-      ? { x: saved.x, z: saved.z }
-      : { x: (i - (trees.length - 1) / 2) * TREE_SPAN, z: 0 };
-    for (const node of t.nodes) { node.pos.x += t.origin.x; node.pos.z += t.origin.z; }
-  });
+  // v0.5.1 — EVERY tree stands in a grid cell. The grid is a checker around a reserved middle (so the
+  // seed pool is always dead centre) and bounded (so no tree can be parked so far out that no zoom stop
+  // frames it). What the thinker's dragging changes is WHICH cell, stored as an order of tree ids.
+  const driftingCount = trees.reduce((a, t) => a + t.nodes.filter((n) => n._pool === "forest").length, 0);
+  const cells = gridOrigins(trees.length, driftingCount);
+  const order = resolveTreeOrder(trees.map((t) => t.id), settings.treeOrder ?? legacyOrder(trees, settings), bridges, cells);
+  const byIdTree = new Map(trees.map((t) => [t.id, t]));
+  order.forEach((id, i) => { const t = byIdTree.get(id); if (t && cells[i]) t.origin = { ...cells[i] }; });
+  for (const t of trees) {
+    // forest-pool seeds belong to no tree, so they don't ride their folder's origin — see below.
+    for (const node of t.nodes) { if (node._pool === "forest") continue; node.pos.x += t.origin.x; node.pos.z += t.origin.z; }
+  }
+
+  // v0.5.0 — seeds with no field belong to no tree: they gather in one pool on the forest floor,
+  // placed in WORLD coords clear of every canopy. This pool IS the seed bank, made visible.
+  const drifting = trees.flatMap((t) => t.nodes.filter((n) => n._pool === "forest"));
+  let seedPool: EveForest["seedPool"];
+  if (drifting.length) {
+    // A purely auto-arranged forest reserved its middle for the pool, so aim there. Once the thinker has
+    // dragged trees, that reservation no longer describes the ground — fall back to their centre of mass.
+    // every tree is on the grid now, and the grid reserved its middle for exactly this
+    const place = forestPoolPlacement(drifting.length, trees.map((t) => t.origin), { x: 0, z: 0 });
+    drifting.forEach((n, i) => n.pos.set(place.x + place.slots[i].x, place.slots[i].y, place.z + place.slots[i].z));
+    seedPool = { x: place.x, z: place.z, r: place.r };
+  }
 
   const have = new Set(trees.map((t) => t.id));
   const liveBridges = bridges.filter((b) => have.has(b.from) && have.has(b.to) && b.from !== b.to);
 
-  return { trees, bridges: liveBridges };
+  return { trees, bridges: liveBridges, seedPool };
 }

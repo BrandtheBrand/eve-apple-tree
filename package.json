@@ -1,13 +1,14 @@
 {
   "name": "eve-apple-tree",
-  "version": "0.4.1",
+  "version": "0.5.2",
   "description": "Eve's Apple Tree Thinking System — grow your Obsidian notes into a living 3D tree of light.",
   "main": "main.js",
   "type": "module",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-    "lint": "eslint src/"
+    "lint": "eslint src/",
+    "test": "node --experimental-strip-types --test test/*.test.ts"
   },
   "keywords": [
     "obsidian",

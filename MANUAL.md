@@ -106,7 +106,7 @@ You should see the gardener introduce itself and offer a short exercise where yo
 
 19. Tell the gardener one thing you're actually chewing on right now.
 20. Approve the dot it proposes.
-21. Click **Rebuild from vault** in the panel.
+21. Click **Reload my notes** in the panel.
 
 You should now see your own first dot added to the tree, next to the six examples.
 
@@ -167,7 +167,7 @@ You should now have a `.claude/` folder, a `CLAUDE.md` file, and a `templates/` 
 5. Fill in `field`, `time`, and your idea in each one.
 6. Link related notes to each other with `[[wikilinks]]`.
 7. Open the command palette, type **tree**, and run **Open the tree of light**.
-8. Click **Rebuild from vault** in the panel.
+8. Click **Reload my notes** in the panel.
 
 You should now see your new folder standing as its own tree, root and leaves in place.
 
@@ -177,13 +177,14 @@ You should now see your new folder standing as its own tree, root and leaves in 
 
 ## 4. Reading your tree
 
-Every note that appears on the tree is called a **dot**: one glowing point of light. There are five kinds.
+Every note that appears on the tree is called a **dot**: one glowing point of light. There are six kinds.
 
-- 🌱 **Root**: the seed question the whole tree grows from. One per tree, usually about how and why you think about this topic at all.
+- 🌱 **Root**: the root question the whole tree grows from. One per tree, usually about how and why you think about this topic at all.
 - 🪵 **Trunk**: a pivotal idea the topic turns on. A few of these, never many.
 - 🍃 **Leaf**: one ordinary idea. Most of your dots will be leaves.
 - 🌸 **Flower**: a breakthrough, an "oh, now I get it" moment. You mark these yourself; neither the plugin nor the AI team ever marks one for you.
 - 🍎 **Apple**: something you finished and could show someone: a decision, a draft, a post, a shipped thing.
+- 🌰 **Seed**: a topic you have *not opened yet*. Seeds are the one kind that doesn't sit on the tree: they float as green, softly lit dots in a wide, matte light-brown pool on the ground — the pool is earth, the seeds are the only thing shining in it. A seed with a `field` pools at the foot of its own tree; a seed without one drifts to a single shared pool on the forest floor, for topics that belong to no tree yet. Seeds carry no label of their own — **point at one and it names itself, move away and the name is gone** — so a long list of someday-topics can sit there without competing with the thinking you actually did.
 
 Two facts explain almost everything else about how a tree is arranged.
 
@@ -213,24 +214,24 @@ title: What counts as evidence
 ---
 ```
 
-- `tree_type`: one of `root`, `trunk`, `leaf`, `flower`, `apple`.
+- `tree_type`: one of `root`, `trunk`, `leaf`, `flower`, `apple`, `seed`.
 - `field`: the lens name. Skip this for `root` and `trunk` notes; they sit on the central axis, not inside any one field.
-- `time`: an ISO date (`2026-07-05`) or a plain number. Pick one style and use it consistently within a single tree; mixing dates and numbers in the same tree throws off the height, since a number reads as a day count.
+- `time`: an ISO date (`2026-07-05`) or a plain number. Leave it off a `seed` — a topic you haven't opened has no place on the time axis, and one written there is ignored. Pick one style and use it consistently within a single tree; mixing dates and numbers in the same tree throws off the height, since a number reads as a day count.
 - `title`: optional. Leave it out and the note's file name is used instead.
 
 Mark a breakthrough either way: set `tree_type: flower`, or add a `flower: true` line to a note and the plugin treats it as a flower even without a `tree_type`.
 
-You don't need to write this from scratch each time. A `templates/` folder (bundled with the starter vault, and with the standalone AI-team download from Path C) has one ready-made file for every note type: `root.md`, `trunk.md`, `leaf.md`, `flower.md`, `apple.md`, plus two extras: `field.md`, to define a brand-new lens with its own home note, and `bridge.md`, described below. Copy the one you need, fill in the blanks, and save it inside the folder that is, or will become, your tree.
+You don't need to write this from scratch each time. A `templates/` folder (bundled with the starter vault, and with the standalone AI-team download from Path C) has one ready-made file for every note type: `root.md`, `trunk.md`, `leaf.md`, `flower.md`, `apple.md`, `seed.md`, plus two extras: `field.md`, to define a brand-new lens with its own home note, and `bridge.md`, described below. Copy the one you need, fill in the blanks, and save it inside the folder that is, or will become, your tree.
 
 A note doesn't have to be all-or-nothing. Frontmatter with some tree keys but not others still renders, with reasonable defaults: an untyped note becomes a leaf, an unfielded one lands in "Unfiled," an untimed one uses its creation date. A note with none of the tree keys at all stays off the tree, invisible, until you tag it, or until you turn off "Only show notes with tree frontmatter" in Obsidian's Settings (section 6), which makes the plugin render every note in the vault, tagged or not.
 
 Two more things a note can optionally carry:
 
-**Stakeholder views.** Add a `## Stakeholder views` heading to a note's body, with lines like `- **Investor:** thinks this is undervalued`, one per perspective. Once any note in a tree has these, a **Stakeholder lens** control appears in the panel (section 6) that lets you dim the tree down to one perspective at a time.
+**Stakeholder views.** Add a `## Stakeholder views` heading to a note's body, with lines like `- **Investor:** thinks this is undervalued`, one per perspective. Every chair named anywhere in a tree becomes that tree's **cast**, and each dot's card then shows both halves: the chairs that have spoken on that idea, and the ones that have not. The second half is the point — a chair that never speaks on an idea is a perspective you haven't taken.
 
 **Bridges.** Two trees never connect automatically, on purpose: if you can't explain why two topics relate in one honest sentence, they stay separate. To connect them anyway, write a note from `templates/bridge.md`: set `bridge_from` and `bridge_to` to the two folder names, and write a one-sentence `explain`. Clicking the bridge line on the tree opens that note.
 
-After adding or editing notes, the tree does not update on its own. Open it and click **Rebuild from vault** in the panel to re-scan your vault and redraw.
+After adding or editing notes, the tree does not update on its own. Open it and click **Reload my notes** in the panel to re-scan your vault and redraw.
 
 ---
 
@@ -247,11 +248,13 @@ Before the panel: these are the physical moves for exploring the tree.
 - **Two-finger-click (right mouse button) and drag** to pan sideways.
 - **Click a dot** to open its card (see below).
 - **Drag a leaf, flower, or apple dot** to place it by hand inside its own field's sector; the new position saves automatically and survives a rebuild or an app restart. Root and trunk dots are fixed anchors and can't be dragged this way.
-- **Drag a whole tree** by its trunk, root, or far-zoom silhouette to rearrange your forest.
+- **Drag a whole tree** by its trunk, root, or far-zoom silhouette. Every tree stands in a **grid cell**: a dropped tree snaps to the nearest cell, and if that cell is taken, the two trees **swap**. The grid is a checker around the seed pool, which always sits at the exact middle, and it widens as the forest grows rather than stretching into a row — so no tree can end up so far away that you can't frame it. Trees joined by a **bridge** are placed on the same patch of ground. **↩︎ Undo my tree moves** in the panel puts every tree back in the spot the layout would have chosen.
+- **Point at a seed** in a pool to read its topic; the name disappears when you move away. Clicking one opens its card like any other dot.
+- **The zoom scale** on the right edge has four stops — 🌲 whole forest, 🌳🌳🌳 a few trees, 🌳 one tree, 🍃 close on a leaf. The stop you are currently at is highlighted; click any other to fly there. A stop your vault can't express (three trees when you only have two) is dimmed rather than dead.
 
 ### Plugin settings (Obsidian's Settings tab)
 
-Go to **Settings → Eve Apple Tree Thinking System**. Three toggles live here; change them rarely, and click **Rebuild from vault** afterward to see the effect.
+Go to **Settings → Eve Apple Tree Thinking System**. Three toggles live here; change them rarely, and click **Reload my notes** afterward to see the effect.
 
 | Setting | What it does | Default |
 |---|---|---|
@@ -278,18 +281,16 @@ Open the tree and a floating panel appears on the left. Every control in it, in 
 | Appearance: **Light shine** (slider, 0x to 2x) | Sweeps every dot's glow from subtle to strong. Shows best in dark mode. | Tuning the look to taste, especially before a screenshot. |
 | Appearance: **Zoom-out icon** (dropdown: Round, Conifer, Apple) | Sets the shape each tree collapses into at far zoom. Apple bakes the fruit into the crown. | Personal taste, or matching a screenshot style. |
 | View: **↺ Reset** | Returns the camera to the opening view. | You've orbited somewhere disorienting. |
-| View: **⊹ Fit** | Re-frames the camera to the whole tree or forest. | After zooming in tight, to see everything again. |
 | View: **🌙 Dark / ☀️ Light** | Manually overrides light or dark mode. Otherwise the tree follows Obsidian's own theme automatically. | Keeping the tree's theme independent of your note-editing theme. |
-| **⟳ Rebuild from vault** | Re-scans your notes and redraws the tree. | Any time after adding, editing, or moving a note. |
-| **⌾ Reset dot layout** | Clears every dot you've dragged by hand and reruns the automatic layout. Click once to arm it, click again within 3 seconds to confirm. | Your hand-placed dots have gotten messy and you want to start clean. |
-| **⌾ Reset tree layout** | The same, for whole trees you've dragged around in a forest. Same two-click confirmation. | Your forest layout has gotten tangled. |
+| **⟳ Reload my notes** | Re-scans your notes and redraws the tree. | Any time after adding, editing, or moving a note. |
+| **↩︎ Undo my dot moves** | Puts every dot you've dragged by hand back where the automatic layout would have placed it. Click once to arm it, click again within 3 seconds to confirm. | Your hand-placed dots have gotten messy and you want to start clean. |
+| **↩︎ Undo my tree moves** | The same, for whole trees: every tree returns to the grid spot the layout would have chosen. Same two-click confirmation. | Your forest arrangement has gotten tangled. |
 | **Focus tree** (dropdown, *forest mode only*) | Flies the camera to one named tree, or back to "Whole forest." | Jumping straight to one topic inside a large forest. |
-| **Stakeholder lens** (dropdown, *shown only if a note declares stakeholder views*) | Dims every dot that has no recorded view from the chosen chair, so you can sweep the tree through one perspective at a time. A bar beneath shows what share of dots carry a view from each chair. | Checking whether you've actually thought from more than one seat at the table. |
 | **📖 Manual & help** | Opens this manual. | Any time you forget what a control does. |
 
-![The panel showing the Stakeholder lens control, with its off-state dropdown, below the View buttons](img/hero-dark.png)
+![The panel in dark mode, showing the lower groups of controls](img/hero-dark.png)
 
-*A lower part of the same panel, in dark mode: the Stakeholder lens group, which appears only once a tree has notes carrying stakeholder views.*
+*A lower part of the same panel, in dark mode.*
 
 Clicking any dot, or a bridge line, opens a card on top of the tree: its field and type, title, description, any stakeholder views, and a chip for every note it links to and from, each clickable to jump straight to that dot. An **Open note ↗** button opens the real file in a new Obsidian tab. Close the card with **✕**, `Esc`, or a click on the empty background.
 
@@ -307,7 +308,7 @@ The plugin draws the tree. It never adds anything to it by itself. If you want a
 
 **How to start.** Open your vault's root folder with Claude Code and type: *"Gardener, let's think."* Early on, it will offer a short calibration exercise: you hand-write a few dots in your own words, and it learns your voice from those instead of writing in a generic AI tone. Using a different AI? Paste the vault's `CLAUDE.md` (or `.claude/skills/gardener/SKILL.md`) in as its system prompt and work the same way.
 
-**Working without it.** Nothing about the team is required. Copy a template from `templates/`, write your idea in your own words, set its `field` and `time`, add a `[[link]]` or two, and click **Rebuild from vault**. The tree renders straight from plain text either way. The AI team proposes; it is never a gatekeeper.
+**Working without it.** Nothing about the team is required. Copy a template from `templates/`, write your idea in your own words, set its `field` and `time`, add a `[[link]]` or two, and click **Reload my notes**. The tree renders straight from plain text either way. The AI team proposes; it is never a gatekeeper.
 
 ---
 
@@ -326,7 +327,7 @@ The plugin itself makes no network requests: it runs fully offline, and the 3D l
 No, not until you personally add tree frontmatter to a note. An untagged vault renders as an empty tree view; nothing is reorganized, moved, or rewritten on your behalf.
 
 #### Can I use it with zero AI?
-Yes, entirely. Copy a template, write your idea, set its field and time, link it to something else, and click Rebuild from vault. The tree only ever reads plain-text frontmatter; the AI team is an addition, not a requirement.
+Yes, entirely. Copy a template, write your idea, set its field and time, link it to something else, and click Reload my notes. The tree only ever reads plain-text frontmatter; the AI team is an addition, not a requirement.
 
 #### How many notes can it handle?
 There's no hard limit, but "Cluster linked dots" (the setting that pulls related dots together) turns itself off automatically on any single tree with more than 500 notes, to keep Obsidian responsive. Splitting a very large topic across a few top-level folders keeps each resulting tree smaller and faster.
@@ -347,11 +348,11 @@ Go to **Settings → Community plugins**, disable **Eve Apple Tree Thinking Syst
 | A whole folder shows no tree | None of its notes carry frontmatter | Give at least one note `tree_type` frontmatter |
 | Everything is in ONE tree | The notes sit at the vault root, or all inside one folder | Give each topic its own top-level folder |
 | Two trees will not connect | By design, there are no automatic cross-tree links | Write a bridge note from `templates/bridge.md` explaining the connection |
-| Tree looks stale after edits | The tree renders on demand, not live | Click **Rebuild from vault** in the panel |
+| Tree looks stale after edits | The tree renders on demand, not live | Click **Reload my notes** in the panel |
 | Plugin isn't in the Community Plugins list yet | It may not have cleared Obsidian's community review yet | Use the manual-install path in Path C: download `main.js`, `manifest.json`, `styles.css` from the latest release into `.obsidian/plugins/eve-apple-tree/` |
 | The panel is missing a control described in this manual | You're running an older version of the plugin | Update to the latest release from the GitHub releases page |
 | The tree feels slow on a large vault | A big tree is doing a lot of rendering work | Turn off "Cluster linked dots" for very large trees, lower the Light shine slider, or split a huge topic across more top-level folders so each tree stays smaller |
-| Tree looks different after you dragged something | Dots or whole trees keep any position you drag them to | Click **⌾ Reset dot layout** (for dots) or **⌾ Reset tree layout** (for whole trees) in the panel; each needs a second click within 3 seconds to confirm |
+| Tree looks different after you dragged something | Dots or whole trees keep any position you drag them to | Click **↩︎ Undo my dot moves** (for dots) or **↩︎ Undo my tree moves** (for whole trees) in the panel; each needs a second click within 3 seconds to confirm |
 
 ---
 

@@ -56,7 +56,8 @@ class EveSettingTab extends PluginSettingTab {
     containerEl.empty();
     containerEl.createEl("p", {
       text: "Your notes grow into a living 3D tree of light. Notes are placed by their frontmatter: " +
-        "tree_type (root/trunk/leaf/flower/apple), field (sector), and time (height). Links become branches; " +
+        "tree_type (root/trunk/leaf/flower/apple/seed), field (sector), and time (height). Links become branches; " +
+        "seeds are topics you haven't opened yet — they float in a pool on the ground instead of on the tree. " +
         "cross-field links become rhizome. Open the tree from the ribbon (sprout icon) or the command palette.",
     });
 

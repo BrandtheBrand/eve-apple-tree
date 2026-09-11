@@ -26,6 +26,7 @@ Eve's tree team tends the tree with you. It proposes leaves and connections; you
 - Every note is a **🍃 leaf** — one idea, titled as a short *handle* (a phrase or a raw question), not a finished thesis.
 - Leaves grow in **fields** (lenses on how you think: *Researcher · Maker · Critic · Storyteller*) and rise over **time** (old at the bottom, new at the top).
 - Connections are **branches** and, across fields, **rhizome** threads. The web of links *is* the structure. No rigid folders.
+- A topic you haven't opened yet is a **🌰 seed** — it waits in a pool on the ground, not on the tree.
 - A breakthrough is a **🌸 flower** (an *Ah-ha* you'll never lose); a finished thing is a **🍎 apple** (an output — you learn by producing).
 - The deeper soil is your **🌱 root**: *how and why you think.*
 

@@ -31,7 +31,7 @@ The fastest path is one download that has everything wired together already.
 
 ## What you're looking at
 
-Notes become **leaves**, placed by **field** (the lens you were thinking through) and **time** (height). Links are the **rhizome**. Breakthroughs are **flowers**; the things you make are **apples**. Zoom in and titles surface, then descriptions; zoom out and the whole tree becomes a translucent green silhouette.
+Notes become **leaves**, placed by **field** (the lens you were thinking through) and **time** (height). Links are the **rhizome**. Breakthroughs are **flowers**; the things you make are **apples**; topics you haven't opened yet are **seeds**, floating in a pool on the ground rather than on the tree. Zoom in and titles surface, then descriptions; zoom out and the whole tree becomes a translucent green silhouette.
 
 **One folder = one tree.** Put each topic in its own top-level folder and your vault becomes a **forest** of independent trees standing side by side.
 
@@ -62,7 +62,7 @@ Notes become **leaves**, placed by **field** (the lens you were thinking through
 - 👁 **Stakeholder views + chair lens** — a note can carry a `## Stakeholder views` section (different "chairs" and their takes); a lens dims every dot that has no view from the chosen chair, so you can sit in one perspective and sweep the tree.
 - 🌉 **Cross-tree bridges** — connect two trees only through a "bridge" note that explains the link (never an automatic cross-tree line).
 - 🖱️ **Click a dot for its card** — title, description, field, any stakeholder views, and its links to and from other notes, with an **Open note ↗** button that opens the note in a new tab. Bridge nodes open the same way and show their explanation. Close the card with ✕, Esc, or a click on the background.
-- ✋ **Hand-placeable dots** — drag any leaf, ah-ha 🌸, or output 🍎 to arrange it; the position saves automatically and comes back after a rebuild or an app restart. A dot stays inside its own field wedge, so the picture can never misrepresent a note's field; to move a dot into another field, change the note's `field` property. Root and trunk dots are fixed anchors. **⌾ Reset dot layout** (double-click to confirm) returns everything to auto-layout.
+- ✋ **Hand-placeable dots** — drag any leaf, ah-ha 🌸, or output 🍎 to arrange it; the position saves automatically and comes back after a rebuild or an app restart. A dot stays inside its own field wedge, so the picture can never misrepresent a note's field; to move a dot into another field, change the note's `field` property. Root and trunk dots are fixed anchors. **↩︎ Undo my dot moves** (double-click to confirm) returns everything to auto-layout.
 - 🎛️ **Control-panel upgrades** — the panel minimizes to a small pill; a **Text size** slider scales every label live; a **Zoom-out icon** selector sets the far-zoom silhouette shape (Round, Conifer, or Apple, an apple-tree crown with its fruit baked in).
 - ♿ Respects `prefers-reduced-motion` (auto-spin, when you enable it manually, is exempt by design). Desktop-only (heavy WebGL).
 
@@ -74,7 +74,7 @@ Each note carries small YAML frontmatter:
 
 ```yaml
 ---
-tree_type: leaf          # root | trunk | leaf | flower | apple
+tree_type: leaf          # root | trunk | leaf | flower | apple | seed
 field: Researcher        # the lens/sector (omit for root & trunk)
 time: 2026-06-26         # ISO date or number → height (old low, new high)
 title: What counts as evidence   # optional; defaults to the file name
@@ -89,7 +89,7 @@ title: What counts as evidence   # optional; defaults to the file name
 - **Bridge note (optional):** a note with `bridge_from: <folder>` + `bridge_to: <folder>` (+ optional `bridge_from_note` / `bridge_to_note`, `title`, `explain`) draws the one allowed connection between two trees; click it to open the bridge note.
 - Partial frontmatter is handled gracefully: a note that carries *some* tree keys but not others defaults to `leaf`, an "Unfiled" field, and its creation date. With **Only show notes with tree frontmatter** on (the default), a note carrying *no* tree keys at all is hidden until you tag it or switch that setting off.
 
-Use **Rebuild from vault** in the panel after adding or editing notes (live auto-refresh is on the roadmap).
+Use **⟳ Reload my notes** in the panel after adding or editing notes (live auto-refresh is on the roadmap).
 
 ### Settings
 - **Only show notes with tree frontmatter** — **on by default.** The tree renders only notes that carry `tree_type` / `field` / `time` / `flower` frontmatter, so a mixed vault stays clean and fast. Turn it **off** to render every note in the vault (whole-vault mode). If a fresh vault shows an empty view, this is why: tag a note (see above) or switch this off.
@@ -116,7 +116,7 @@ Installed the plugin from Community Plugins (or by hand) and want the AI half in
 2. Copy everything inside `eve-tree-team/` into your vault's root folder, including the hidden `.claude/` folder. Already have a `CLAUDE.md`? Merge by hand instead of overwriting.
 3. Open the vault folder in Claude Code and say *"gardener, let's think."*
 
-The zip also carries a `templates/` folder (root, trunk, leaf, flower, apple, field, bridge) for growing the tree fully by hand.
+The zip also carries a `templates/` folder (root, trunk, leaf, flower, apple, seed, field, bridge) for growing the tree fully by hand.
 
 ### From source
 ```bash
@@ -138,8 +138,8 @@ To add Eve's tree team to your own vault (rather than using the starter vault), 
 - **🌙/☀️** button — toggle dark mode manually (otherwise follows your Obsidian theme).
 - **Zoom in** to reveal titles, then descriptions; **zoom out** for the green forest.
 - **Click a dot** to open its card (title, description, field, stakeholder views, links); **Open note ↗** opens the note in a new tab. Close with ✕, Esc, or a background click.
-- **Drag a dot** to place it by hand inside its field wedge; the position saves automatically. **⌾ Reset dot layout** (double-click) restores auto-layout.
-- Panel toggles: field sectors, structural/rhizome links, field names, flower/apple markers, cross-tree bridges, auto-spin, and **Flat wedge ↔ Column**. Sliders for **Text size** and **Light shine**, a **Zoom-out icon** shape selector (Round / Conifer / Apple), and a **minimize** button that collapses the panel to a pill.
+- **Drag a dot** to place it by hand inside its field wedge; the position saves automatically. **↩︎ Undo my dot moves** (double-click) restores auto-layout.
+- Panel toggles: field sectors, structural/rhizome links, field names, flower/apple markers, cross-tree bridges, auto-spin, and **Flat wedge ↔ Column**. Sliders for **Text size** and **Light shine**, a **Zoom-out icon** shape selector (Round / Conifer / Apple), and a **minimize** button that collapses the panel to a pill. A four-stop **zoom scale** (whole forest / a few trees / one tree / close on a leaf) sits on the right edge: it shows where you are and flies you there when clicked.
 
 ---
 

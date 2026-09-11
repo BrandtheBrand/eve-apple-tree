@@ -23,6 +23,7 @@ So we use the tree as the **picture** (because it's motivating and legible) but 
 - **🍃 Leaf — one idea.** The atom. Most notes. One idea each — if a note has two ideas, it's two leaves.
 - **🌿 Branch / 🕸 Rhizome — connections.** A branch is any link; a *rhizome* link crosses fields. Rhizome links are the gold: they're where original thinking happens.
 - **⭕ Rings — accumulated understanding.** Revisiting the same idea and understanding it more. Append a dated layer; never overwrite. Rings are how depth is recorded.
+- **🌰 Seed — a topic you haven't opened.** Not an idea you had; a door you walked past. Seeds don't sit on the tree — they lie in a pool on the ground, at the foot of the tree they belong to, or in a shared forest pool if they belong to none yet. They have no `time`, because they haven't happened. A seed either germinates (you open it, and it becomes a trunk or leaf) or composts. **This is the seed bank made visible:** the left-behind list from every "capture all, promote some" pass finally has somewhere to live instead of decaying inside a document nobody reopens.
 - **🌸 Flower — the Ah-ha.** A breakthrough you must never lose. Durable memory.
 - **🍎 Apple — an output.** Something you produced. Learning *through expression*. The proof the thinking completed.
 
@@ -35,6 +36,7 @@ So we use the tree as the **picture** (because it's motivating and legible) but 
 ## 3. The six moves, in depth
 
 ### PLANT — capture without friction
+A thought you *had* becomes a leaf. A topic you merely *noticed* becomes a **seed** — parked in the pool at a cost of one line, so that noticing it costs nothing and losing it is impossible. Do not inflate a seed into a leaf to make the tree look fuller; a leaf with no idea in it is worse than an honest empty pool.
 The enemy of capture is friction. The human speaks; the Gardener writes the leaf and confirms in one line. Never present a form. A half-formed thought captured beats a perfect thought lost.
 
 ### INSPIRE — manufacture thinking
@@ -126,7 +128,7 @@ Each note carries a little YAML so the 3D tree can place it and the Gardener can
 
 ```yaml
 ---
-tree_type: leaf        # root | trunk | leaf | flower | apple
+tree_type: leaf        # root | trunk | leaf | flower | apple | seed
 field: Researcher      # which lens/sector (omit for root/trunk)
 time: 2026-06-26       # ISO date or ordinal → vertical position
 flower: false          # true if this is an Ah-ha

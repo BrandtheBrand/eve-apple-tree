@@ -7,11 +7,13 @@ import {
   BG, FOG, H, R, SEC_PAD, WEDGE_INSET, R_BAND_MIN, rMaxAt,
   LOD_START, LOD_END, SIL_OPACITY, SIL_GREEN, BRIDGE_COL,
   angleOf, place, hexA, lighten, lightHex, THEMES,
+  ZOOM_LEVELS, type ZoomLevel, type ZoomStop, zoomStops, nearestStop, type Lod, lodAt,
+  POOL_TINT, poolOpacity, seedDotOpacity, seedGlow, gridOrigins, nearestCellIndex, chairsOnDot,
 } from "./layout";
 
 export const VIEW_TYPE_EVE = "eve-apple-tree-view";
 
-const IMPORTANCE: Record<TreeType, number> = { root: 1.0, trunk: 0.8, apple: 0.7, flower: 0.65, leaf: 0.0 };
+const IMPORTANCE: Record<TreeType, number> = { root: 1.0, trunk: 0.8, apple: 0.7, flower: 0.65, leaf: 0.0, seed: 0.0 };
 const MANUAL_URL = "https://github.com/BrandtheBrand/eve-apple-tree/blob/main/MANUAL.md";
 
 interface LabelSlot {
@@ -50,7 +52,6 @@ export class EveTreeView extends ItemView {
   // (never a canvas or material per dot). Their opacity is driven once per frame by the render loop.
   private glowMats = new Map<string, THREE.SpriteMaterial>();
   private glowAnim: { m: THREE.SpriteMaterial; accent: boolean }[] = [];
-  private glowDimMat?: THREE.SpriteMaterial;   // shared faint halo for chair-lens-dimmed dots
   private themeDark = false; private linkMul = 1.0; private themeBtn?: HTMLElement;
   private themeManual = false;   // once the user clicks 🌙/☀️, their choice wins over Obsidian's theme
 
@@ -70,13 +71,6 @@ export class EveTreeView extends ItemView {
   private bridgesOn = true;
   private fieldMode: "flat" | "column" = "flat";
   private lodT = 0;
-
-  // chair lens — stakeholder POV overlay (reads `views`; changes nothing structural)
-  private lensChair: string | null = null;
-  private lensCast: string[] = [];
-  private viewDots: EveNode[] = [];
-  private mirrorEl?: HTMLElement;
-  private lensSelect?: HTMLSelectElement;
 
   // labels
   private pool: LabelSlot[] = [];
@@ -104,6 +98,25 @@ export class EveTreeView extends ItemView {
   // plane. Mutually exclusive with `drag` (dot-drag wins the press when both could apply — see onPointerDown).
   private treeDrag: { tree: EveTree; offset: THREE.Vector3; prevSpin: boolean; moved: boolean } | null = null;
   private readonly groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+  // v0.5.0 seeds — the pool's dots are hover-only: pointing at one names the topic, moving off forgets it.
+  private seedSprites: THREE.Sprite[] = [];
+  private hoverEl?: HTMLElement;
+  private hoverPt: { x: number; y: number } | null = null;
+  private hoverNode: EveNode | null = null;
+  private readonly ray = new THREE.Raycaster();   // reused — hover runs once per frame, not per pointer event
+  // v0.5.0 zoom scale — four framing stops down the right edge
+  private scaleStops: ZoomStop[] = [];
+  private scaleEls: { level: ZoomLevel; el: HTMLElement }[] = [];
+  private scaleLevel: ZoomLevel | null = null;
+  /** Level of detail for the current frame — derived from the scale's stops (see lodAt). */
+  private lod: Lod = { sil: 0, title: 1, desc: 1, fieldName: 1, treeName: 0, accent: 1 };
+  // Pools carry their own visibility curve — they must be STRONGEST at the icon zoom, which is exactly
+  // where the shared dot-fade goes to zero. Driven per frame, never through fadeMats.
+  private poolMats: THREE.MeshBasicMaterial[] = [];
+  private poolIcons: THREE.Sprite[] = [];
+  private seedGlowMat?: THREE.SpriteMaterial;
+  private poolLabelEl?: HTMLElement;
   private resetTreeArmed = 0;   // timestamp — "Reset tree layout" needs a 2nd click within 3s to fire
 
   constructor(leaf: WorkspaceLeaf, private settings: EveSettings, private persist: () => Promise<void>) { super(leaf); }
@@ -144,9 +157,11 @@ export class EveTreeView extends ItemView {
     this.initThree();
     this.buildScene();
     this.buildControlsPanel();
+    this.buildScaleBar();
     this.applyTheme(this.themeManual ? this.themeDark : this.detectObsidianDark());   // rebuild keeps a manual 🌙/☀️ choice
     this.applyTextScale();
     this.fit();
+    this.computeStops();
     this.startLoop();
   }
 
@@ -209,6 +224,7 @@ export class EveTreeView extends ItemView {
       fieldFlat: new THREE.Group(), fieldColumn: new THREE.Group(), struct: new THREE.Group(),
       rhizome: new THREE.Group(), dots: new THREE.Group(), glow: new THREE.Group(),
       sil: new THREE.Group(), bridge: new THREE.Group(), select: new THREE.Group(),
+      pools: new THREE.Group(),
     };
     Object.values(this.G).forEach((g) => this.scene.add(g));
 
@@ -222,6 +238,7 @@ export class EveTreeView extends ItemView {
     this.root.addEventListener("pointermove", this.onPointerMove, true);
     this.root.addEventListener("pointerup", this.onPointerUp, true);
     canvas.addEventListener("contextmenu", this.onContextMenu);
+    canvas.addEventListener("pointerleave", this.onPointerLeave);
   }
 
   private resizeRenderer = () => {
@@ -231,9 +248,49 @@ export class EveTreeView extends ItemView {
     this.camera.aspect = this.w / this.h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(this.w, this.h);
+    this.computeStops();
   };
 
   /* ---------------- textures ---------------- */
+  /** Still green water: faint in the middle, brighter where the pool meets the ground, nothing past the rim. */
+  private poolTexture(): THREE.Texture {
+    const key = "pool"; if (this.texCache[key]) return this.texCache[key];
+    const S = 256, c = this.containerEl.ownerDocument.createElement("canvas"); c.width = c.height = S;
+    const x = c.getContext("2d")!; const g = x.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+    // white + alpha only (material.color tints it per theme). A defined rim gives the pool an EDGE —
+    // a soft blob on cream or on black reads as a smudge at any distance.
+    // matte: an even body with a soft edge and NO bright rim — a rim reads as a light source, and the
+    // pool must read as damp earth so the seeds are the only thing shining in it.
+    g.addColorStop(0.00, "rgba(255,255,255,0.92)");
+    g.addColorStop(0.70, "rgba(255,255,255,0.88)");
+    g.addColorStop(0.90, "rgba(255,255,255,0.70)");
+    g.addColorStop(1.00, "rgba(255,255,255,0.00)");
+    x.fillStyle = g; x.fillRect(0, 0, S, S);
+    const t = new THREE.CanvasTexture(c); this.texCache[key] = t; return t;
+  }
+
+  /** A camera-facing cluster of seeds, for the far zoom. The pool itself lies flat on the ground and the
+      default camera sits only ~15 degrees above it, so at icon distance the disc foreshortens to a line —
+      the trees get a standing silhouette for exactly this reason, and the pool needs its own. */
+  private poolIconTexture(dark: boolean): THREE.Texture {
+    const key = "poolicon" + (dark ? "d" : "l"); if (this.texCache[key]) return this.texCache[key];
+    const S = 256, c = this.containerEl.ownerDocument.createElement("canvas"); c.width = c.height = S;
+    const x = c.getContext("2d")!;
+    const brown = dark ? POOL_TINT.dark : POOL_TINT.light, green = ROLE.seed.tint, glow = ROLE.seed.glow!;
+    // the basin first (matte brown), then the seeds on top (green, the only lit thing here)
+    const basin = x.createRadialGradient(128, 182, 4, 128, 182, 96);
+    basin.addColorStop(0, hexA(brown, 0.95)); basin.addColorStop(0.74, hexA(brown, 0.85)); basin.addColorStop(1, hexA(brown, 0));
+    x.fillStyle = basin; x.beginPath(); x.ellipse(128, 182, 96, 34, 0, 0, 7); x.fill();
+    for (const [px, py, r] of [[96, 150, 19], [158, 142, 17], [127, 104, 15]] as [number, number, number][]) {
+      const g = x.createRadialGradient(px, py, 0, px, py, r * 3.2);
+      g.addColorStop(0, hexA(glow, 0.85)); g.addColorStop(0.30, hexA(glow, 0.38)); g.addColorStop(1, hexA(glow, 0));
+      x.fillStyle = g; x.beginPath(); x.arc(px, py, r * 3.2, 0, 7); x.fill();
+      x.fillStyle = hexA(green, 1); x.beginPath(); x.arc(px, py, r, 0, 7); x.fill();
+      x.fillStyle = hexA(lightHex(green, 0.55), 0.95); x.beginPath(); x.arc(px - r * 0.25, py - r * 0.3, r * 0.42, 0, 7); x.fill();
+    }
+    const t = new THREE.CanvasTexture(c); this.texCache[key] = t; return t;
+  }
+
   private dotTexture(tint: string, ring: string): THREE.Texture {
     const key = tint + ring; if (this.texCache[key]) return this.texCache[key];
     const S = 160, c = this.containerEl.ownerDocument.createElement("canvas"); c.width = c.height = S;
@@ -289,12 +346,6 @@ export class EveTreeView extends ItemView {
       this.glowMats.set(key, m); this.glowAnim.push({ m, accent });
     }
     return m;
-  }
-  /** Shared faint halo a chair-lens-dimmed dot's glow switches to (its tint no longer matters at ~0.1). */
-  private glowDim(): THREE.SpriteMaterial {
-    if (!this.glowDimMat) this.glowDimMat = new THREE.SpriteMaterial({ map: this.haloTexture(), color: new THREE.Color("#c8d0da"),
-      transparent: true, depthWrite: false, blending: this.themeDark ? THREE.AdditiveBlending : THREE.NormalBlending, fog: true, opacity: 0 });
-    return this.glowDimMat;
   }
   private ringTexture(): THREE.Texture {
     if (this.texCache["ring"]) return this.texCache["ring"];
@@ -382,12 +433,39 @@ export class EveTreeView extends ItemView {
       this.buildFields(tree);
       this.buildSilhouette(tree);
     }
+    this.buildPools();
     this.buildBridges();
     this.applyFieldMode();
     this.buildLabels();
 
     this.selRing = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.ringTexture(), transparent: true, depthWrite: false, fog: true, opacity: 0 }));
     this.selRing.visible = false; this.G.select.add(this.selRing);
+  }
+
+  /** v0.5.0 — the discs the seeds float in: one at each tree's foot, one shared pool on the forest floor. */
+  private buildPools() {
+    const geo = new THREE.PlaneGeometry(2, 2);
+    const tint = this.themeDark ? POOL_TINT.dark : POOL_TINT.light;
+    const disc = (x: number, z: number, r: number): THREE.Mesh => {
+      const mat = new THREE.MeshBasicMaterial({ map: this.poolTexture(), color: new THREE.Color(tint), transparent: true, depthWrite: false, fog: true, opacity: 0 });
+      const m = new THREE.Mesh(geo, mat);
+      m.rotation.x = -Math.PI / 2;          // lie flat on the ground — a sprite can't, it always faces the camera
+      m.position.set(x, 0.01, z); m.scale.set(r, r, 1);
+      this.G.pools.add(m); this.poolMats.push(mat);
+      const icon = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.poolIconTexture(this.themeDark), transparent: true, depthWrite: false, fog: false, opacity: 0 }));
+      const sz = Math.max(4.2, r * 0.43);   // reads alongside a tree silhouette (~0.8x), never instead of one
+      icon.position.set(x, sz * 0.46, z); icon.scale.set(sz, sz, 1);
+      this.G.pools.add(icon); this.poolIcons.push(icon);
+      return m;
+    };
+    for (const tree of this.forest.trees) if (tree.pool) tree.poolMesh = disc(tree.origin.x, tree.origin.z, tree.pool.rOut);
+    const sp = this.forest.seedPool;
+    if (sp) {
+      disc(sp.x, sp.z, sp.r);
+      const n = this.allNodes.filter((x) => x._pool === "forest").length;
+      this.poolLabelEl = this.labelLayer.createDiv({ cls: "eve-tlabel eve-poollabel" });
+      this.poolLabelEl.setText(`🌰 Seed pool · ${n}`);
+    }
   }
 
   private buildDots(tree: EveTree) {
@@ -400,7 +478,8 @@ export class EveTreeView extends ItemView {
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.dotTexture(tint, ring), transparent: true, depthWrite: false, fog: true }));
       sp.position.copy(n.pos); sp.scale.set(sz, sz, 1);
       sp.userData = { node: n, baseScale: sz, tint, ring };
-      this.G.dots.add(sp); n.sprite = sp; n._lens = 1;
+      this.G.dots.add(sp); n.sprite = sp;
+      if (n.treeType === "seed") this.seedSprites.push(sp);
       // FIX3: EVERY dot gets a soft glow halo — shared texture, cached per-colour material. Flower/apple
       // (role.glow) glow brighter and use their warm glow hue; all others glow in the dot's own colour.
       const accent = !!role.glow;
@@ -409,6 +488,7 @@ export class EveTreeView extends ItemView {
       gs.position.copy(n.pos); const gz = sz * (accent ? 3.2 : 2.6); gs.scale.set(gz, gz, 1);
       gs.userData = { litMat };
       this.G.glow.add(gs); n.glowSprite = gs;
+      if (n.treeType === "seed") this.seedGlowMat = litMat;
     }
   }
 
@@ -599,17 +679,15 @@ export class EveTreeView extends ItemView {
   private _m = new THREE.Matrix4();
   private clamp01(x: number) { return x < 0 ? 0 : x > 1 ? 1 : x; }
   private ss(a: number, b: number, x: number) { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
-  private titleOn = false; private descOn = false;
 
   private updateLabels() {
-    const W = this.w, Hh = this.h, cam = this.camera, ctr = this.controls;
+    const W = this.w, Hh = this.h, cam = this.camera;
     cam.updateMatrixWorld();
-    const detail = 1 - this.lodT;
-    const d = cam.position.distanceTo(ctr.target);
-    const tOn = 0.70 * this.D0, dOn = 0.42 * this.D0, bnd = 0.04 * this.D0;
-    this.titleOn = d < (this.titleOn ? tOn + bnd : tOn - bnd);
-    this.descOn = d < (this.descOn ? dOn + bnd : dOn - bnd);
-    const nodeMax = 1.10 * this.D0, fFar = 0.95 * this.D0, fNear = 0.50 * this.D0;
+    const lod = this.lod;
+    // per-dot falloff is measured against ONE tree's framing distance, so a neighbouring tree's dots fade
+    // instead of competing with the tree you are actually looking at.
+    const dTree = this.scaleStops.find((s) => s.level === "tree")?.d ?? this.D0;
+    const nodeMax = 2.2 * dTree, fFar = 1.9 * dTree, fNear = 1.0 * dTree;
 
     this._m.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
     this._fr.setFromProjectionMatrix(this._m);
@@ -620,47 +698,56 @@ export class EveTreeView extends ItemView {
       if (!tree.nameLabelEl) continue;
       this._v.set(tree.origin.x, -2.8, tree.origin.z).project(cam);
       const on = this._v.x >= -1.05 && this._v.x <= 1.05 && this._v.y >= -1.05 && this._v.y <= 1.05 && this._v.z < 1;
-      tree.nameLabelEl.style.opacity = on ? this.lodT.toFixed(3) : "0";   // 0 at working zooms
+      tree.nameLabelEl.style.opacity = on ? lod.treeName.toFixed(3) : "0";   // takes over once per-note titles go
       tree.nameLabelEl.style.transform = `translate3d(${Math.round((this._v.x * .5 + .5) * W)}px,${Math.round((-this._v.y * .5 + .5) * Hh)}px,0) translate(-50%,0)`;
     }
 
-    // field names — fade as titles take over AND as silhouettes appear
-    const titleProgress = this.clamp01((tOn - d) / (tOn - dOn));
+    // the shared seed pool names itself in the same band the tree names use
+    const sp = this.forest.seedPool;
+    if (this.poolLabelEl && sp) {
+      this._v.set(sp.x, -1.1, sp.z).project(cam);
+      const on = this._v.x >= -1.05 && this._v.x <= 1.05 && this._v.y >= -1.05 && this._v.y <= 1.05 && this._v.z < 1;
+      this.poolLabelEl.style.opacity = on ? Math.max(lod.treeName, 0.55 * lod.sil).toFixed(3) : "0";
+      this.poolLabelEl.style.transform = `translate3d(${Math.round((this._v.x * .5 + .5) * W)}px,${Math.round((-this._v.y * .5 + .5) * Hh)}px,0) translate(-50%,0)`;
+    }
+
+    // field names — only meaningful once you're down to a single tree; the tree name takes over beyond that
     this.sEls.forEach((e, i) => {
       const a = this.sectorAnchor[i], t = this.sectorTree[i];
-      if (!a || !t || !this.fieldLabelsOn || detail < 0.05) { e.style.removeProperty("opacity"); return; }
+      if (!a || !t || !this.fieldLabelsOn || lod.fieldName < 0.05) { e.style.removeProperty("opacity"); return; }
       this._v.set(a.x + t.origin.x, a.y, a.z + t.origin.z).project(cam);
       const on = this._v.x >= -1.05 && this._v.x <= 1.05 && this._v.y >= -1.05 && this._v.y <= 1.05 && this._v.z < 1;
       if (!on) { e.style.removeProperty("opacity"); return; }
-      e.style.opacity = ((1 - 0.9 * titleProgress) * detail).toFixed(3);
+      e.style.opacity = (lod.fieldName * (1 - 0.55 * lod.desc)).toFixed(3);
       e.style.transform = `translate3d(${Math.round((this._v.x * .5 + .5) * W)}px,${Math.round((-this._v.y * .5 + .5) * Hh)}px,0) translate(-50%,-50%)`;
     });
 
     // flower / apple markers
     this.aEls.forEach((a) => {
-      if (!this.accentLabelsOn || detail < 0.05) { a.el.style.removeProperty("opacity"); return; }
+      if (!this.accentLabelsOn || lod.accent < 0.05) { a.el.style.removeProperty("opacity"); return; }
       this._v.copy(a.node.pos).project(cam);
       const on = this._v.x >= -1 && this._v.x <= 1 && this._v.y >= -1 && this._v.y <= 1 && this._v.z < 1;
       if (!on) { a.el.style.removeProperty("opacity"); return; }
-      a.el.style.opacity = (0.92 * detail).toFixed(3);
+      a.el.style.opacity = (0.92 * lod.accent).toFixed(3);
       a.el.style.transform = `translate3d(${Math.round((this._v.x * .5 + .5) * W)}px,${Math.round((-this._v.y * .5 + .5) * Hh)}px,0) translate(-50%,-160%)`;
     });
 
     // node titles/descriptions — zoom-driven (suppressed in silhouette mode)
     const cands: { n: EveNode; sx: number; sy: number; op: number; tier: number; score: number; sel: boolean }[] = [];
-    if (detail >= 0.05) for (const n of this.allNodes) {
+    if (lod.title >= 0.02) for (const n of this.allNodes) {
       const sel = n === this.selected;
-      if (!sel && !this.titleOn) continue;
       if (n.treeType === "root" && !sel) continue;
+      // a seed is a door you haven't opened — it stays quiet until you point at it (see updateHover)
+      if (n.treeType === "seed" && !sel) continue;
       if (!this._fr.containsPoint(n.pos)) continue;
       const dist = cam.position.distanceTo(n.pos);
       if (!sel && dist > nodeMax) continue;
-      const op = (sel ? 1 : this.ss(fFar, fNear, dist)) * detail;
+      const op = (sel ? 1 : this.ss(fFar, fNear, dist)) * lod.title;
       if (!sel && op < 0.02) continue;
       this._v.copy(n.pos).project(cam);
       const sx = (this._v.x * .5 + .5) * W, sy = (-this._v.y * .5 + .5) * Hh;
-      const tier = sel ? 2 : (this.descOn ? 2 : 1);
-      const score = dist - (IMPORTANCE[n.treeType] || 0) * this.D0 * 0.18 - (sel ? 1e6 : 0);
+      const tier = sel ? 2 : (lod.desc > 0.5 ? 2 : 1);
+      const score = dist - (IMPORTANCE[n.treeType] || 0) * dTree * 0.18 - (sel ? 1e6 : 0);
       cands.push({ n, sx, sy, op, tier, score, sel });
     }
     cands.sort((a, b) => a.score - b.score);
@@ -739,16 +826,121 @@ export class EveTreeView extends ItemView {
     const pos = C.clone().addScaledVector(dir, dist);
     this.D0 = dist; this.preset = { pos: pos.clone(), target: C.clone() };
     this.controls.maxDistance = Math.max(400, dist * 2.8);
+    // The camera's far plane was fixed at 2000 while maxDistance scales with the forest — pull back past
+    // it in a spread-out vault and every tree is clipped away to nothing. Fit them to each other.
+    this.camera.far = Math.max(2000, this.controls.maxDistance + Rf + Rbound);
+    this.camera.updateProjectionMatrix();
     const fog = this.scene.fog as THREE.Fog; fog.near = Math.max(1, dist * 0.42); fog.far = dist * 1.9 + Rf;
     this.camera.position.copy(pos); this.controls.target.copy(C); this.controls.update();
   }
-  private focusTree(tree: EveTree) {
-    const C = new THREE.Vector3(tree.origin.x, H * 0.46, tree.origin.z);
-    const Rbound = Math.hypot(R, H * 0.52), vfov = THREE.MathUtils.degToRad(this.camera.fov), aspect = this.camera.aspect || 1;
+  /** Centre + camera distance that frames a set of trees — the same bounding-sphere math fit() uses,
+      factored out so the zoom scale's stops are measured with the identical ruler the buttons fly by. */
+  private frameOf(list: EveTree[]): { C: THREE.Vector3; dist: number } {
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (const t of list) {
+      minX = Math.min(minX, t.origin.x - R); maxX = Math.max(maxX, t.origin.x + R);
+      minZ = Math.min(minZ, t.origin.z - R); maxZ = Math.max(maxZ, t.origin.z + R);
+    }
+    const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
+    const C = new THREE.Vector3(cx, H * 0.46, cz);
+    let Rf = R; for (const t of list) Rf = Math.max(Rf, Math.hypot(t.origin.x - cx, t.origin.z - cz) + R);
+    const Rbound = Math.hypot(Rf, H * 0.52);
+    const vfov = THREE.MathUtils.degToRad(this.camera.fov), aspect = this.camera.aspect || 1;
     const hfov = 2 * Math.atan(Math.tan(vfov / 2) * aspect);
-    const dist = 1.70 * Math.max(Rbound / Math.sin(vfov / 2), Rbound / Math.sin(hfov / 2));
-    const dir = new THREE.Vector3(20, 12 - H * 0.46, 20).normalize();
-    this.flyTo(C.clone().addScaledVector(dir, dist), C);
+    return { C, dist: 1.70 * Math.max(Rbound / Math.sin(vfov / 2), Rbound / Math.sin(hfov / 2)) };
+  }
+  private get presetDir(): THREE.Vector3 { return new THREE.Vector3(20, 12 - H * 0.46, 20).normalize(); }
+  private focusTree(tree: EveTree) {
+    const f = this.frameOf([tree]);
+    this.flyTo(f.C.clone().addScaledVector(this.presetDir, f.dist), f.C);
+  }
+
+  /* ---------------- v0.5.0: seed hover + zoom scale ---------------- */
+
+  /** Point at a seed and it names its topic; move off and the name is gone. Runs ONCE per frame against
+      the seed sprites only — never the whole vault — so it stays free even in a 700-dot forest. */
+  private updateHover() {
+    if (!this.hoverEl || !this.renderer) return;
+    let hit: EveNode | null = null;
+    if (this.hoverPt && !this.drag && !this.treeDrag && this.seedSprites.length && this.lodT < 0.5) {
+      const rect = this.renderer.domElement.getBoundingClientRect();
+      this.ray.setFromCamera(new THREE.Vector2(
+        ((this.hoverPt.x - rect.left) / rect.width) * 2 - 1,
+        -((this.hoverPt.y - rect.top) / rect.height) * 2 + 1), this.camera);
+      const h = this.ray.intersectObjects(this.seedSprites, false)[0];
+      if (h) hit = (h.object.userData as DotUserData).node;
+    }
+    if (hit !== this.hoverNode) {
+      this.hoverNode = hit;
+      if (hit) this.hoverEl.setText(hit.title);
+      this.hoverEl.toggleClass("show", !!hit);
+    }
+    if (hit && this.hoverPt) {
+      const rect = this.renderer.domElement.getBoundingClientRect();
+      this.hoverEl.style.transform =
+        `translate3d(${Math.round(this.hoverPt.x - rect.left + 14)}px,${Math.round(this.hoverPt.y - rect.top - 8)}px,0)`;
+    }
+  }
+
+  /** Measure the scale's stops against the CURRENT scene and viewport (they move when the pane resizes). */
+  /** The three trees nearest the current aim — the same set flyToLevel("three") frames, so the stop's
+      distance and the button's destination can never drift apart (they do once trees are dragged apart). */
+  private nearestTrees(n: number): EveTree[] {
+    return [...this.forest.trees].sort((a, b) => this.treeDist(a) - this.treeDist(b)).slice(0, n);
+  }
+
+  private computeStops() {
+    const trees = this.forest.trees;
+    if (!trees.length) { this.scaleStops = []; return; }
+    const near = this.nearestTrees(3);
+    const one = this.frameOf([near[0]]).dist;
+    const three = this.frameOf(near).dist;
+    const before = this.scaleStops;
+    this.scaleStops = zoomStops(this.D0, three, one);
+    if (this.scaleEls.length && before.length !== this.scaleStops.length ||
+        this.scaleStops.some((s, i) => s.reachable !== before[i]?.reachable))
+      for (const { level, el } of this.scaleEls) el.toggleClass("off", !this.scaleStops.find((s) => s.level === level)?.reachable);
+  }
+
+  private buildScaleBar() {
+    const ICON: Record<ZoomLevel, string> = { forest: "🌲", three: "🌳🌳🌳", tree: "🌳", leaf: "🍃" };
+    const NAME: Record<ZoomLevel, string> = { forest: "Whole forest", three: "A few trees", tree: "One tree", leaf: "Close on a leaf" };
+    const bar = this.root.createDiv({ cls: "eve-scale" });
+    bar.setAttr("role", "group"); bar.setAttr("aria-label", "Zoom");
+    for (const level of ZOOM_LEVELS) {
+      const el = bar.createDiv({ cls: "eve-stop eve-stop-" + level, text: ICON[level] });
+      el.setAttr("role", "button"); el.setAttr("aria-label", NAME[level]); el.setAttr("title", NAME[level]);
+      el.addEventListener("click", () => this.flyToLevel(level));
+      this.scaleEls.push({ level, el });
+    }
+    this.hoverEl = this.labelLayer.createDiv({ cls: "eve-seedtip" });
+  }
+
+  private treeDist(t: EveTree): number {
+    return Math.hypot(t.origin.x - this.controls.target.x, t.origin.z - this.controls.target.z);
+  }
+
+  private flyToLevel(level: ZoomLevel) {
+    const stop = this.scaleStops.find((s) => s.level === level);
+    if (!stop?.reachable || !this.forest.trees.length) return;
+    if (level === "forest") { this.flyTo(this.preset.pos, this.preset.target); return; }
+    if (level === "leaf") {
+      // stay on what they are already looking at (or the selected dot) and come in close
+      const C = this.selected ? this.selected.pos.clone() : this.controls.target.clone();
+      const dir = this.camera.position.clone().sub(this.controls.target).normalize();
+      this.flyTo(C.clone().addScaledVector(dir, stop.d), C);
+      return;
+    }
+    const f = this.frameOf(this.nearestTrees(level === "tree" ? 1 : 3));
+    this.flyTo(f.C.clone().addScaledVector(this.presetDir, f.dist), f.C);
+  }
+
+  private updateScale(d: number) {
+    if (!this.scaleStops.length) return;
+    const lvl = nearestStop(d, this.scaleStops);
+    if (lvl === this.scaleLevel) return;
+    this.scaleLevel = lvl;
+    for (const s of this.scaleEls) s.el.toggleClass("on", s.level === lvl);
   }
 
   /* raycast the dots (+ visible bridges + the silhouette, once it's visible) under the pointer */
@@ -811,6 +1003,9 @@ export class EveTreeView extends ItemView {
     }
   };
   private onPointerMove = (e: PointerEvent) => {
+    // only RECORD the pointer here; the raycast itself runs once per frame in the loop, so sweeping the
+    // mouse across a big vault costs nothing extra.
+    this.hoverPt = this.renderer && e.target === this.renderer.domElement ? { x: e.clientX, y: e.clientY } : null;
     if (!this.press) return;
     if (this.drag) {
       if (!this.drag.moved && Math.hypot(e.clientX - this.press.x, e.clientY - this.press.y) < 5) return;
@@ -840,18 +1035,14 @@ export class EveTreeView extends ItemView {
     if (treeDrag) {
       this.renderer?.domElement.releasePointerCapture?.(e.pointerId);
       this.controls.autoRotate = treeDrag.prevSpin;
-      if (treeDrag.moved) {
-        // cross-tree bridge arcs aren't live-tracked during the drag — re-route them now, once, on drop.
-        if (this.forest.bridges.length) this.rebuildBridges();
-        this.persistTree(treeDrag.tree);
-        return;
-      }
+      if (treeDrag.moved) { this.persistTree(treeDrag.tree); return; }   // snaps, swaps, re-routes bridges
     }
     if (moved > 5) return;                                        // it was an orbit / pan, not a click
     if (press.node) this.selectNode(press.node);                 // click a dot → card (F3)
     else if (press.bridge) this.showBridge(press.bridge);        // click a bridge → bridge card
     else this.deselect();                                        // background click closes the card
   };
+  private onPointerLeave = () => { this.hoverPt = null; };
   private onContextMenu = (e: MouseEvent) => { e.preventDefault(); };   // suppress menu so two-finger-click drag pans (no reset)
 
   /** F4: only field dots move individually. Root/trunk are structural anchors (grabbing them moves the
@@ -915,15 +1106,51 @@ export class EveTreeView extends ItemView {
     if (!dx && !dz) return;
     tree.origin.x = x; tree.origin.z = z;
     const shifted = new THREE.Vector3();
-    for (const n of tree.nodes) { shifted.set(n.pos.x + dx, n.pos.y, n.pos.z + dz); this.moveNode(n, shifted); }
+    for (const n of tree.nodes) {
+      if (n._pool === "forest") continue;   // it sits in the shared pool, not on this tree
+      shifted.set(n.pos.x + dx, n.pos.y, n.pos.z + dz); this.moveNode(n, shifted);
+    }
+    tree.poolMesh?.position.set(x, 0.01, z);
     tree.fieldFlatG?.position.set(x, 0, z);
     tree.fieldColumnG?.position.set(x, 0, z);
     if (tree.sil) tree.sil.position.set(x, H * 0.50, z);
     if (tree.silMarks) for (const m of tree.silMarks) this.placeSilMark(m);
   }
-  /** Persist a dragged tree's origin (WORLD x,z — trees sit at y=0). */
+  /** The cells this forest's trees stand in, in cell order (index i == the tree at order[i]). */
+  private cells(): { x: number; z: number }[] {
+    const seeds = this.allNodes.filter((n) => n._pool === "forest").length;
+    return gridOrigins(this.forest.trees.length, seeds);
+  }
+
+  /**
+   * v0.5.1 — a dropped tree SNAPS to the nearest cell, and if that cell is taken the two trees swap.
+   * Free-dragging let a tree be parked arbitrarily far out, where the forest's fit distance ballooned and
+   * no zoom stop framed it usefully; on the grid every tree has a place and the arrangement stays a
+   * permutation, which is why it can be saved as an order of ids rather than as coordinates.
+   */
   private persistTree(tree: EveTree) {
-    (this.settings.treeOrigins ??= {})[tree.id] = { x: tree.origin.x, z: tree.origin.z };
+    const cells = this.cells();
+    const order = this.settings.treeOrder?.filter((id) => this.forest.trees.some((t) => t.id === id)) ?? [];
+    for (const t of this.forest.trees) if (!order.includes(t.id)) order.push(t.id);
+
+    const from = order.indexOf(tree.id);
+    const to = nearestCellIndex(tree.origin.x, tree.origin.z, cells);
+    if (from < 0 || to < 0 || from === to) { this.settleTrees(order, cells); return; }
+    const occupant = order[to];
+    order[to] = tree.id; order[from] = occupant;      // swap — the other tree takes the cell just vacated
+    this.settleTrees(order, cells);
+    if (occupant && occupant !== tree.id) new Notice(`Swapped with ${occupant}.`);
+  }
+
+  /** Put every tree on its cell (animating nothing — the drop is the gesture) and save the order. */
+  private settleTrees(order: string[], cells: { x: number; z: number }[]) {
+    order.forEach((id, i) => {
+      const t = this.forest.trees.find((x) => x.id === id);
+      if (t && cells[i]) this.moveTree(t, cells[i].x, cells[i].z);
+    });
+    this.settings.treeOrder = order;
+    delete this.settings.treeOrigins;                 // superseded by the order (see layout.ts)
+    if (this.forest.bridges.length) this.rebuildBridges();
     void this.persist();
   }
   /** Dispose the GL resources (geometry/material) of a scene node, if it carries any — used by
@@ -944,7 +1171,6 @@ export class EveTreeView extends ItemView {
 
   private selectNode(n: EveNode) {
     this.selected = n;
-    if (this.lensChair) this.applyLens();   // keep the selected dot lit even if the active chair dims it
     const sp = n.sprite;
     if (sp) {
       const sz = sp.userData.baseScale as number;
@@ -955,8 +1181,7 @@ export class EveTreeView extends ItemView {
     this.showCard(n);
   }
   private deselect() {
-    const had = this.selected; this.selected = null; this.selRing.visible = false;
-    if (had && this.lensChair) this.applyLens();   // re-dim a dot the lens had hidden
+    this.selected = null; this.selRing.visible = false;
     this.G.dots.children.forEach((s) => (s as THREE.Sprite).scale.setScalar(((s as THREE.Sprite).userData as DotUserData).baseScale));
     this.hideCard();
   }
@@ -981,14 +1206,34 @@ export class EveTreeView extends ItemView {
     tag.style.color = this.themeDark ? lightHex(ringCol, 0.45) : ringCol;   // dark ring hues are too dim on the card
     card.createEl("h3", { cls: "eve-ntitle", text: n.title });
     if (n.description) card.createDiv({ cls: "eve-ndesc", text: n.description });
-    if (n.views && n.views.length) {
-      card.createDiv({ cls: "eve-nsec", text: "👁 Stakeholder views (" + n.views.length + ")" });
-      for (const v of n.views) {
+    // The stakeholder layer lives HERE, on the dot, not as a forest-wide filter in the panel. The panel
+    // version offered every chair in the vault on every tree — sitting in "Shopper" while looking at a
+    // Muji dot was noise — and its percentages were computed across all trees at once. On the card the
+    // cast is the owning tree's, and the chairs that have NOT spoken are named: a chair that never speaks
+    // is the blindspot the method exists to surface (NOTE-FORMAT: every dot is seen by every stakeholder).
+    const cast = tree?.cast ?? [];
+    if ((n.views && n.views.length) || cast.length) {
+      const { spoke, silent } = chairsOnDot(n.views, cast);
+      const total = new Set([...spoke.map((v) => v.c).filter(Boolean), ...silent]).size;
+      card.createDiv({ cls: "eve-nsec", text: `👁 Stakeholder views (${spoke.length} of ${total})` });
+      for (const v of spoke) {
         if (!v.c && !v.t) continue;
         const row = card.createDiv({ cls: "eve-nview" });
-        if (this.lensChair) row.toggleClass("on", v.c === this.lensChair);
         row.createSpan({ cls: "eve-vchair", text: v.c + ": " });
         row.appendText(v.t);
+      }
+      if (silent.length) {
+        const row = card.createDiv({ cls: "eve-nsilent" });
+        if (spoke.length) {
+          // some chairs spoke: naming the rest is actionable — this is the missing-lens prompt
+          row.createSpan({ cls: "eve-slabel2", text: "Not yet sat in: " });
+          row.appendText(silent.join(" · "));
+        } else {
+          // none spoke: the full roster on every untouched dot would be a wall of the same eight names,
+          // so say it once, short. The prompt survives; the noise doesn't.
+          row.createSpan({ cls: "eve-slabel2", text: "No chair sat with this yet" });
+          row.appendText(` — ${silent.length} in this tree's cast.`);
+        }
       }
     }
     if (tree) {
@@ -1048,9 +1293,11 @@ export class EveTreeView extends ItemView {
     // per cached material (the small set), not per dot.
     const gb = dark ? THREE.AdditiveBlending : THREE.NormalBlending;
     for (const ga of this.glowAnim) { ga.m.blending = gb; ga.m.needsUpdate = true; }
-    if (this.glowDimMat) { this.glowDimMat.blending = gb; this.glowDimMat.needsUpdate = true; }
     for (const tree of this.forest.trees) if (tree.silMarks)
       for (const s of tree.silMarks) { const m = s.material; m.blending = dark ? THREE.AdditiveBlending : THREE.NormalBlending; m.needsUpdate = true; }
+    const pt = new THREE.Color(dark ? POOL_TINT.dark : POOL_TINT.light);
+    for (const pm of this.poolMats) { pm.color.copy(pt); pm.needsUpdate = true; }
+    for (const pi of this.poolIcons) { pi.material.map = this.poolIconTexture(dark); pi.material.needsUpdate = true; }
     if (this.themeBtn) this.themeBtn.setText(dark ? "☀️ Light" : "🌙 Dark");
   }
 
@@ -1072,7 +1319,7 @@ export class EveTreeView extends ItemView {
     const pitch = ui.createDiv({ cls: "eve-pitch" });
     pitch.appendText("Your notes become a living "); pitch.createEl("b", { text: "tree of light" });
     pitch.appendText(" — so you can "); pitch.createEl("b", { text: "see the shape of your own thinking" });
-    pitch.appendText(": forgotten links resurface, related ideas cluster, and your breakthroughs glow.");
+    pitch.appendText(".");
     if (this.isForest) ui.createDiv({ cls: "eve-topic", text: `🌲 Forest · ${this.forest.trees.length} trees` });
 
     // How to use it
@@ -1081,9 +1328,10 @@ export class EveTreeView extends ItemView {
     const steps = guide.createEl("ul", { cls: "eve-steps" });
     const step = (lead: string, rest: string) => { const li = steps.createEl("li"); li.createSpan({ cls: "k", text: lead }); li.appendText(rest); };
     step("Drag · scroll · two-finger-drag", " to fly through it, zoom, and pan.");
-    step("Click a dot", " → see its card; drag a dot to reposition it (saved).");
-    step("Zoom sets the detail", " → far out: green tree icons (names beneath) · mid: constellation · closer: titles · closest: + descriptions.");
-    step("Related ideas cluster", "; your 🌸 ah-has & 🍎 outputs glow.");
+    step("Click a dot", " → see its card; drag a dot to reposition it.");
+    step("Zoom sets the detail", ".");
+    step("Ideas you linked sit together", " — within a tree and across it: bridged trees share a patch of ground. 🌸 ah-has and 🍎 outputs glow; 🌰 seeds wait in the pool.");
+    step("Drag a tree", " to swap it with the tree in that spot.");
 
     // Show / hide
     const showGrp = ui.createDiv({ cls: "eve-grp" });
@@ -1159,30 +1407,28 @@ export class EveTreeView extends ItemView {
     // View: Reset · Fit · Dark
     const viewGrp = ui.createDiv({ cls: "eve-grp" });
     viewGrp.createDiv({ cls: "eve-lbl", text: "View" });
+    // ↺ Reset and ⊹ Fit both flew to the opening view, which is exactly what the zoom scale's 🌲 stop
+    // now does — two buttons for a control already on screen. Only the theme toggle is left here.
     const btns = viewGrp.createDiv({ cls: "eve-btns" });
-    const reset = btns.createEl("button", { cls: "eve-btn", text: "↺ Reset", attr: { title: "Return to the opening view" } });
-    reset.addEventListener("click", this.resetView);
-    const fitb = btns.createEl("button", { cls: "eve-btn", text: "⊹ Fit", attr: { title: "Re-frame the whole tree / forest" } });
-    fitb.addEventListener("click", () => { this.fit(); this.resetView(); });
     this.themeBtn = btns.createEl("button", { cls: "eve-btn", text: this.themeDark ? "☀️ Light" : "🌙 Dark", attr: { title: "Switch between light and diamond-dark" } });
     this.themeBtn.addEventListener("click", () => { this.themeManual = true; this.applyTheme(!this.themeDark); });
-    const refresh = ui.createEl("button", { cls: "eve-btn", text: "⟳ Rebuild from vault" });
+    const refresh = ui.createEl("button", { cls: "eve-btn", text: "⟳ Reload my notes", attr: { title: "Re-read the vault and redraw — use it after editing notes outside this view" } });
     refresh.addEventListener("click", () => void this.reload());
     // F1 — clear all user-dragged positions (2-click confirm within 3s), then rebuild
-    const resetLayout = ui.createEl("button", { cls: "eve-btn", text: "⌾ Reset dot layout", attr: { title: "Clear every dot you've dragged and re-run the auto-layout" } });
+    const resetLayout = ui.createEl("button", { cls: "eve-btn", text: "↩︎ Undo my dot moves", attr: { title: "Put every dot you've dragged back where the layout would have placed it" } });
     resetLayout.addEventListener("click", () => {
       const now = performance.now();
-      if (now - this.resetArmed > 3000) { this.resetArmed = now; new Notice("Reset dot layout? Click again within 3s to clear every moved dot."); return; }
+      if (now - this.resetArmed > 3000) { this.resetArmed = now; new Notice("Undo every dot you've moved? Click again within 3s."); return; }
       this.resetArmed = 0; this.settings.dotPositions = {};
-      new Notice("Dot layout reset."); void this.persist().then(() => this.reload());
+      new Notice("Dot moves undone."); void this.persist().then(() => this.reload());
     });
     // F5 — clear all user-dragged tree origins (2-click confirm within 3s), then rebuild
-    const resetTreeLayout = ui.createEl("button", { cls: "eve-btn", text: "⌾ Reset tree layout", attr: { title: "Clear every tree you've dragged and return it to the auto row" } });
+    const resetTreeLayout = ui.createEl("button", { cls: "eve-btn", text: "↩︎ Undo my tree moves", attr: { title: "Put every tree back in the grid spot the layout would have chosen" } });
     resetTreeLayout.addEventListener("click", () => {
       const now = performance.now();
-      if (now - this.resetTreeArmed > 3000) { this.resetTreeArmed = now; new Notice("Reset tree layout? Click again within 3s to clear every moved tree."); return; }
-      this.resetTreeArmed = 0; this.settings.treeOrigins = {};
-      new Notice("Tree layout reset."); void this.persist().then(() => this.reload());
+      if (now - this.resetTreeArmed > 3000) { this.resetTreeArmed = now; new Notice("Undo every tree you've moved? Click again within 3s."); return; }
+      this.resetTreeArmed = 0; this.settings.treeOrigins = {}; this.settings.treeOrder = undefined;
+      new Notice("Tree moves undone."); void this.persist().then(() => this.reload());
     });
 
     if (this.isForest) {
@@ -1194,7 +1440,6 @@ export class EveTreeView extends ItemView {
       sel.addEventListener("change", () => { const i = +sel.value; if (i < 0) this.resetView(); else this.focusTree(this.forest.trees[i]); });
     }
 
-    this.buildChairLens(ui);
     // (in-view footer branding removed — a support link lives in the plugin's settings tab instead)
 
     const help = ui.createEl("button", { cls: "eve-btn", text: "📖 Manual & help", attr: { title: "Open the full guide in your browser" } });
@@ -1213,63 +1458,6 @@ export class EveTreeView extends ItemView {
   }
 
   /* ---------------- chair lens (stakeholder overlay, forest-wide) ---------------- */
-  private viewChairs(n: EveNode): string[] { return (n.views ?? []).map((v) => v.c).filter(Boolean); }
-
-  private buildChairLens(ui: HTMLElement) {
-    const declared = [...new Set(this.forest.trees.flatMap((t) => t.cast || []))];
-    this.lensCast = [...new Set([...declared, ...this.allNodes.flatMap((n) => this.viewChairs(n))])];
-    if (!this.lensCast.length) return;                 // no stakeholder layer → no control
-    this.viewDots = this.allNodes.filter((n) => (n.views ?? []).length > 0);
-    const grp = ui.createDiv({ cls: "eve-grp" });
-    grp.createDiv({ cls: "eve-lbl", text: "Stakeholder lens" });
-    grp.createDiv({ cls: "eve-lenshint", text: "Sit in one chair: ideas that chair has no view on dim away, so you sweep the tree through one perspective." });
-    const sel = grp.createEl("select", { cls: "eve-lenssel" });
-    this.lensSelect = sel;
-    const off = sel.createEl("option", { text: "— off (all chairs) —" }); off.value = "";
-    this.lensCast.forEach((c) => { const o = sel.createEl("option", { text: c }); o.value = c; });
-    sel.addEventListener("change", () => { this.lensChair = sel.value || null; this.applyLens(); });
-    this.mirrorEl = grp.createDiv({ cls: "eve-mirror" });
-    this.renderMirror();
-  }
-
-  private renderMirror() {
-    const mirror = this.mirrorEl; if (!mirror) return;
-    mirror.empty();
-    const M = this.viewDots.length;
-    const rows = this.lensCast.map((c) => {
-      const k = this.viewDots.filter((n) => this.viewChairs(n).includes(c)).length;
-      return { c, k, pct: M ? Math.round(100 * k / M) : 0 };
-    }).sort((a, b) => b.k - a.k || (a.c < b.c ? -1 : 1));
-    const cap = mirror.createDiv({ cls: "eve-mcap" });
-    if (this.lensChair) { const r = rows.find((x) => x.c === this.lensChair)!; cap.setText(`${this.lensChair} · ${r.k}/${M} dots (${r.pct}%)`); }
-    else cap.setText(`chair-mirror · ${M} dot${M === 1 ? "" : "s"} with views`);
-    for (const r of rows) {
-      const row = mirror.createDiv({ cls: "eve-mrow" + (r.c === this.lensChair ? " on" : "") });
-      row.setAttr("role", "button"); row.tabIndex = 0; row.setAttr("aria-label", `Stakeholder lens: ${r.c} (${r.pct}%)`);
-      row.createSpan({ cls: "eve-mname", text: r.c });
-      const bar = row.createSpan({ cls: "eve-mbar" }); bar.createEl("i").style.width = r.pct + "%";
-      row.createSpan({ cls: "eve-mpct", text: r.pct + "%" });
-      const toggle = () => {
-        this.lensChair = this.lensChair === r.c ? null : r.c;
-        if (this.lensSelect) this.lensSelect.value = this.lensChair ?? "";
-        this.applyLens();
-      };
-      row.addEventListener("click", toggle);
-      row.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
-    }
-  }
-
-  private applyLens() {
-    for (const n of this.allNodes) {
-      const match = !this.lensChair || n === this.selected || this.viewChairs(n).includes(this.lensChair);
-      n._lens = match ? 1 : 0.10;
-      // FIX3: glow follows the lens by swapping to a shared faint material (per-dot opacity isn't possible
-      // with shared materials); its opacity is still animated live so the dim floor breathes with detail.
-      if (n.glowSprite) n.glowSprite.material = match ? (n.glowSprite.userData.litMat as THREE.SpriteMaterial) : this.glowDim();
-    }
-    this.renderMirror();
-  }
-
   /* ---------------- loop + teardown ---------------- */
   private startLoop() {
     const loop = (t: number) => {
@@ -1283,24 +1471,34 @@ export class EveTreeView extends ItemView {
       this.controls.update();
       // LOD crossfade: dots/wedges/links fade out, green silhouettes fade in (and back)
       const d = this.camera.position.distanceTo(this.controls.target);
-      this.lodT = this.ss(LOD_START * this.D0, LOD_END * this.D0, d); const detail = 1 - this.lodT;
+      // Detail is decided by which framing stop the camera is at, never by a fraction of the whole-forest
+      // fit distance — that older rule inverted at every stop framing fewer trees and piled the labels up.
+      this.computeStops();
+      this.lod = this.scaleStops.length
+        ? lodAt(d, this.scaleStops)
+        : { sil: this.ss(LOD_START * this.D0, LOD_END * this.D0, d), title: 1, desc: 1, fieldName: 1, treeName: 0, accent: 1 };
+      this.lodT = this.lod.sil; const detail = 1 - this.lodT;
       for (const n of this.allNodes) {
-        // chair-lens dim floor is theme-aware: additive-blended diamonds vanish at 0.10 on black, so dark raises the floor
-        const lens = (n._lens ?? 1) < 1 ? (this.themeDark ? 0.22 : 0.10) : (n._lens ?? 1);
-        if (n.sprite) n.sprite.material.opacity = lens * detail;
+        // seeds are the one dot that must survive the icon zoom — that view is where the pool speaks
+        if (n.sprite) n.sprite.material.opacity = n.treeType === "seed" ? seedDotOpacity(this.lodT) : detail;
       }
       // FIX3 light-shine: drive the SMALL cached glow-material set once per frame (subtle default, theme-
       // adaptive, capped so light never washes out and dark stays the showpiece). Slider scales the whole.
       const gLeaf = this.themeDark ? 0.30 : 0.13, gAcc = this.themeDark ? 0.55 : 0.26, gCap = this.themeDark ? 0.95 : 0.52;
       for (const ga of this.glowAnim) ga.m.opacity = Math.min(gCap, (ga.accent ? gAcc : gLeaf) * detail * this.shine);
-      if (this.glowDimMat) this.glowDimMat.opacity = Math.min(gCap, (this.themeDark ? 0.12 : 0.05) * detail * this.shine);
+      if (this.seedGlowMat) this.seedGlowMat.opacity = Math.min(gCap, seedGlow(this.shine, this.themeDark) * seedDotOpacity(this.lodT));
       for (const tree of this.forest.trees) {
         if (tree.sil) tree.sil.material.opacity = this.lodT * SIL_OPACITY;
         if (tree.silMarks) for (const m of tree.silMarks) m.material.opacity = this.lodT;
       }
       for (const fm of this.fadeMats) fm.m.opacity = fm.b * detail * (fm.link ? this.linkMul : 1);
+      const po = poolOpacity(this.lodT, this.themeDark);
+      for (const pm of this.poolMats) pm.opacity = po;
+      for (const pi of this.poolIcons) pi.material.opacity = this.lodT * (this.themeDark ? 0.92 : 0.80);
       if (this.selected && this.selected.sprite) { this.selRing.position.copy(this.selected.pos); this.selRing.material.opacity = 0.95 * detail; }
       this.updateLabels();
+      this.updateHover();
+      this.updateScale(d);
       this.renderer!.render(this.scene, this.camera);
     };
     this.raf = this.containerEl.win.requestAnimationFrame(loop);
@@ -1317,6 +1515,7 @@ export class EveTreeView extends ItemView {
     if (this.renderer) {
       const c = this.renderer.domElement;
       c.removeEventListener("contextmenu", this.onContextMenu);
+      c.removeEventListener("pointerleave", this.onPointerLeave);
       this.controls?.dispose();
       this.scene?.traverse((o) => this.disposeObject3D(o));
       Object.values(this.texCache).forEach((t) => t.dispose()); this.texCache = {};
@@ -1328,12 +1527,14 @@ export class EveTreeView extends ItemView {
     // FIX3: cached glow materials are shared, so lens-dimmed dots detach their lit material from the scene
     // — dispose the whole cached set explicitly (scene.traverse only reaches materials still attached).
     this.glowMats.forEach((m) => m.dispose()); this.glowMats.clear();
-    this.glowDimMat?.dispose(); this.glowDimMat = undefined; this.glowAnim = [];
+    this.glowAnim = [];
     this.pool = []; this.active.clear(); this.sEls = []; this.aEls = []; this.sectorAnchor = []; this.sectorTree = [];
     this.selected = null; this.tween = null; this.lodT = 0;
     this.press = null; this.drag = null; this.treeDrag = null; this.edgeIndex.clear();
     this.uiCard = undefined; this.pill = undefined; this.noteCard = undefined;
-    this.lensChair = null; this.lensCast = []; this.viewDots = []; this.mirrorEl = undefined; this.lensSelect = undefined;
+    this.seedSprites = []; this.hoverEl = undefined; this.hoverPt = null; this.hoverNode = null;
+    this.poolMats = []; this.poolIcons = []; this.seedGlowMat = undefined; this.poolLabelEl = undefined;
+    this.scaleStops = []; this.scaleEls = []; this.scaleLevel = null;
     if (clearRoot && this.root) {
       this.root.empty();
       this.labelLayer = this.root.createDiv({ cls: "eve-labels" });
