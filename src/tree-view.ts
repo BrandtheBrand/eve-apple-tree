@@ -93,7 +93,7 @@ export class EveTreeView extends ItemView {
   private edgeIndex = new Map<string, { attr: THREE.BufferAttribute; vi: number }[]>();
   private press: { x: number; y: number; t: number; node: EveNode | null; bridge: EveBridge | null } | null = null;
   private drag: { node: EveNode; plane: THREE.Plane; offset: THREE.Vector3; prevSpin: boolean; moved: boolean } | null = null;
-  private resetArmed = 0;   // timestamp — "Reset layout" needs a 2nd click within 3s to fire
+  private resetArmed = 0;   // timestamp — "Undo my dot moves" needs a 2nd click within 3s to fire
   // F5 whole-tree drag: grab the silhouette (far-zoom icon) or a trunk/root anchor, slide on the y=0 ground
   // plane. Mutually exclusive with `drag` (dot-drag wins the press when both could apply — see onPointerDown).
   private treeDrag: { tree: EveTree; offset: THREE.Vector3; prevSpin: boolean; moved: boolean } | null = null;
@@ -117,7 +117,7 @@ export class EveTreeView extends ItemView {
   private poolIcons: THREE.Sprite[] = [];
   private seedGlowMat?: THREE.SpriteMaterial;
   private poolLabelEl?: HTMLElement;
-  private resetTreeArmed = 0;   // timestamp — "Reset tree layout" needs a 2nd click within 3s to fire
+  private resetTreeArmed = 0;   // timestamp — "Undo my tree moves" needs a 2nd click within 3s to fire
 
   constructor(leaf: WorkspaceLeaf, private settings: EveSettings, private persist: () => Promise<void>) { super(leaf); }
 
@@ -174,17 +174,17 @@ export class EveTreeView extends ItemView {
     e.appendText("Tag your first note by adding a frontmatter block at the very top of the file:");
     const pre = e.createEl("pre", { cls: "eve-empty-code" });
     pre.createEl("code", {
-      text: "---\ntree_type: leaf\nfield: Researcher\ntime: 2026-06-26\n---",
+      text: "---\ntree_type: leaf\nfield: Researcher\ntime: 2026-09-11\n---",
     });
     e.appendText("Then click ");
-    e.createEl("b", { text: "Rebuild from vault" });
+    e.createEl("b", { text: "Reload my notes" });
     e.appendText(". Links between notes become branches; cross-field links become rhizome. Put each topic in its own folder and the vault becomes a ");
     e.createEl("b", { text: "forest" }); e.appendText(".");
     e.createEl("br"); e.createEl("br");
     e.appendText("Already have notes but see nothing? By default the tree shows only notes that carry this frontmatter. To render every note in the vault, turn off ");
-    e.createEl("b", { text: "Settings → Eve's Apple Tree → “Only show notes with tree frontmatter.”" });
+    e.createEl("b", { text: "Settings → Eve Apple Tree Thinking System → “Only show notes with tree frontmatter.”" });
     e.createEl("br"); e.createEl("br");
-    const rb = e.createEl("button", { cls: "eve-btn", text: "⟳ Rebuild from vault" });
+    const rb = e.createEl("button", { cls: "eve-btn", text: "⟳ Reload my notes" });
     rb.addEventListener("click", () => { void this.reload(); });
   }
 

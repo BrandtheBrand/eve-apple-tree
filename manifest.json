@@ -1,7 +1,7 @@
 {
   "id": "eve-apple-tree",
   "name": "Eve Apple Tree Thinking System",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "minAppVersion": "1.7.2",
   "description": "Grow your notes into a living 3D tree of light - a thinking tool, not a filing cabinet. Each folder becomes a tree; notes are leaves placed by field and time; links are the rhizome; flowers are ah-ha moments; apples are outputs; seeds are topics you haven't opened yet, pooled on the ground.",
   "author": "Evelyn Chan",

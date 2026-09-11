@@ -64,7 +64,7 @@ class EveSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Only show notes with tree frontmatter")
-      .setDesc("When on, the tree renders only notes that have tree_type / field / time / flower frontmatter — keeps the view clean in a mixed vault. Click 'Rebuild from vault' in the view after changing.")
+      .setDesc("When on, the tree renders only notes that have tree_type / field / time / flower frontmatter — keeps the view clean in a mixed vault. Click 'Reload my notes' in the view after changing.")
       .addToggle((t) =>
         t.setValue(this.plugin.settings.onlyTreeNotes)
           .onChange(async (v) => { this.plugin.settings.onlyTreeNotes = v; await this.plugin.saveSettings(); })
@@ -72,7 +72,7 @@ class EveSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Forest mode — one folder = one tree")
-      .setDesc("When on (recommended), each top-level folder becomes its own independent tree, arranged side by side as a forest. When off, the whole vault is a single tree. Click 'Rebuild from vault' in the view after changing.")
+      .setDesc("When on (recommended), each top-level folder becomes its own independent tree, arranged side by side as a forest. When off, the whole vault is a single tree. Click 'Reload my notes' in the view after changing.")
       .addToggle((t) =>
         t.setValue(this.plugin.settings.forestByFolder)
           .onChange(async (v) => { this.plugin.settings.forestByFolder = v; await this.plugin.saveSettings(); })
@@ -90,7 +90,7 @@ class EveSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Cluster linked dots")
-      .setDesc("When on (recommended), dots in the same field that link to each other are pulled together into clusters, while unrelated dots sit further apart — keeping the field wedges but making related ideas group. Turn off for a purely even spread. Skipped automatically for trees over 500 notes to keep Obsidian responsive. Click 'Rebuild from vault' in the view after changing.")
+      .setDesc("When on (recommended), dots in the same field that link to each other are pulled together into clusters, while unrelated dots sit further apart — keeping the field wedges but making related ideas group. Turn off for a purely even spread. Skipped automatically for trees over 500 notes to keep Obsidian responsive. Click 'Reload my notes' in the view after changing.")
       .addToggle((t) =>
         t.setValue(this.plugin.settings.clusterLinkedDots)
           .onChange(async (v) => { this.plugin.settings.clusterLinkedDots = v; await this.plugin.saveSettings(); })

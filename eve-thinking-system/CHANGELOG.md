@@ -4,6 +4,26 @@ Reverse-chronological. Each entry: what changed, why, and (for incidents) the ru
 
 ---
 
+## 2026-09-11 — The rename that wasn't finished (v0.5.5)
+
+A second verification pass, run against the code rather than against the previous pass's notes, found the
+0.5.1 button rename had stopped six edits short. `Rebuild from vault` survived in three setting
+descriptions and — the one that matters — in the **empty-state screen**, the first thing a new user with an
+untagged vault ever sees, which was telling them to click a button no longer called that. Its example
+frontmatter also carried a date from the first release, and it cited the settings tab under a name the tab
+does not use.
+
+The audit that found this was the same kind of scan as the one before it, with one difference: it derived
+the list of controls from the source and checked the docs against THAT, instead of grepping for strings
+remembered from the earlier pass. Grepping for what you remember only finds what you remember.
+
+`test/retired-ui.test.ts` now asserts that retired control names stay retired anywhere in the plugin
+source, comments included, and that the empty state only ever names a button the panel actually has.
+
+Published assets for 0.5.4 were verified byte-identical to a fresh build of its tag before this release.
+
+---
+
 ## 2026-09-11 — Package-wide audit: everything the code changed, said out loud (v0.5.4)
 
 A full sweep of all 107 files against the 0.5.0–0.5.4 changes, because four versions of code had shipped
