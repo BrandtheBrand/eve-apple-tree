@@ -1,4 +1,4 @@
-import { Plugin, WorkspaceLeaf, PluginSettingTab, App, Setting } from "obsidian";
+import { Plugin, WorkspaceLeaf, PluginSettingTab, App, Setting, type SettingDefinitionItem } from "obsidian";
 import { EveTreeView, VIEW_TYPE_EVE } from "./tree-view";
 import { EveSettings } from "./layout";
 
@@ -48,9 +48,41 @@ export default class EveApplePlugin extends Plugin {
   async saveSettings() { await this.saveData(this.settings); }
 }
 
+const RELOAD = "Click 'Reload my notes' in the view after changing.";
+const DESC = {
+  onlyTreeNotes: "When on, the tree renders only notes that have tree_type / field / time / flower frontmatter — keeps the view clean in a mixed vault. " + RELOAD,
+  forestByFolder: "When on (recommended), each top-level folder becomes its own independent tree, arranged side by side as a forest. When off, the whole vault is a single tree. " + RELOAD,
+  ignoreFolders: "One folder per line (or comma separated). Those notes stay in your vault and stay editable — they just don't become dots, seeds, bridges, or a tree of their own. Use it for template packs, archives, or anything you keep nearby but aren't thinking about. " + RELOAD,
+  clusterLinkedDots: "When on (recommended), dots in the same field that link to each other are pulled together into clusters, while unrelated dots sit further apart — keeping the field wedges but making related ideas group. Turn off for a purely even spread. Skipped automatically for trees over 500 notes to keep Obsidian responsive. " + RELOAD,
+};
+
 class EveSettingTab extends PluginSettingTab {
   plugin: EveApplePlugin;
   constructor(app: App, plugin: EveApplePlugin) { super(app, plugin); this.plugin = plugin; }
+
+  /** Obsidian 1.13+ reads this to render the tab AND to index the settings for its settings search;
+   *  without it these four are invisible to search. `display()` below still serves 1.7.2–1.12. */
+  getSettingDefinitions(): SettingDefinitionItem[] {
+    return [
+      { name: "Only show notes with tree frontmatter", desc: DESC.onlyTreeNotes,
+        control: { type: "toggle", key: "onlyTreeNotes", defaultValue: true } },
+      { name: "Forest mode — one folder = one tree", desc: DESC.forestByFolder,
+        control: { type: "toggle", key: "forestByFolder", defaultValue: true } },
+      { name: "Folders to keep off the tree", desc: DESC.ignoreFolders, aliases: ["ignore", "exclude", "hide folder", "templates"],
+        control: { type: "textarea", key: "ignoreFolders", defaultValue: "", placeholder: "Templates/\nArchive/", rows: 3 } },
+      { name: "Cluster linked dots", desc: DESC.clusterLinkedDots,
+        control: { type: "toggle", key: "clusterLinkedDots", defaultValue: true } },
+    ];
+  }
+
+  /** Both hooks write through the plugin's own settings object, so the two paths cannot drift. */
+  getControlValue(key: string): unknown {
+    return (this.plugin.settings as unknown as Record<string, unknown>)[key];
+  }
+  async setControlValue(key: string, value: unknown): Promise<void> {
+    (this.plugin.settings as unknown as Record<string, unknown>)[key] = value;
+    await this.plugin.saveSettings();
+  }
 
   display(): void {
     const { containerEl } = this;
@@ -64,7 +96,7 @@ class EveSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Only show notes with tree frontmatter")
-      .setDesc("When on, the tree renders only notes that have tree_type / field / time / flower frontmatter — keeps the view clean in a mixed vault. Click 'Reload my notes' in the view after changing.")
+      .setDesc(DESC.onlyTreeNotes)
       .addToggle((t) =>
         t.setValue(this.plugin.settings.onlyTreeNotes)
           .onChange(async (v) => { this.plugin.settings.onlyTreeNotes = v; await this.plugin.saveSettings(); })
@@ -72,7 +104,7 @@ class EveSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Forest mode — one folder = one tree")
-      .setDesc("When on (recommended), each top-level folder becomes its own independent tree, arranged side by side as a forest. When off, the whole vault is a single tree. Click 'Reload my notes' in the view after changing.")
+      .setDesc(DESC.forestByFolder)
       .addToggle((t) =>
         t.setValue(this.plugin.settings.forestByFolder)
           .onChange(async (v) => { this.plugin.settings.forestByFolder = v; await this.plugin.saveSettings(); })
@@ -80,7 +112,7 @@ class EveSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Folders to keep off the tree")
-      .setDesc("One folder per line (or comma separated). Those notes stay in your vault and stay editable — they just don't become dots, seeds, bridges, or a tree of their own. Use it for template packs, archives, or anything you keep nearby but aren't thinking about. Click 'Reload my notes' in the view after changing.")
+      .setDesc(DESC.ignoreFolders)
       .addTextArea((t) => {
         t.setPlaceholder("Templates/\nArchive/")
           .setValue(this.plugin.settings.ignoreFolders ?? "")
@@ -90,7 +122,7 @@ class EveSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Cluster linked dots")
-      .setDesc("When on (recommended), dots in the same field that link to each other are pulled together into clusters, while unrelated dots sit further apart — keeping the field wedges but making related ideas group. Turn off for a purely even spread. Skipped automatically for trees over 500 notes to keep Obsidian responsive. Click 'Reload my notes' in the view after changing.")
+      .setDesc(DESC.clusterLinkedDots)
       .addToggle((t) =>
         t.setValue(this.plugin.settings.clusterLinkedDots)
           .onChange(async (v) => { this.plugin.settings.clusterLinkedDots = v; await this.plugin.saveSettings(); })

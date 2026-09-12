@@ -37,9 +37,10 @@ jobs:
 
       - run: npm run build
 
-      - name: Build team zip
-        run: bash scripts/build-team-zip.sh
-
+      # The team zip is deliberately NOT built or attached here. Obsidian downloads only main.js,
+      # manifest.json and styles.css, and its plugin reviewer flags every other release asset as
+      # unsupported. Build it locally with scripts/build-team-zip.sh when it is wanted; the package it
+      # contains lives in the repo either way.
       - name: Attest release assets
         uses: actions/attest-build-provenance@v2
         with:
@@ -47,13 +48,12 @@ jobs:
             main.js
             styles.css
             manifest.json
-            eve-tree-team-${{ github.ref_name }}.zip
 
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            main.js manifest.json styles.css "eve-tree-team-$GITHUB_REF_NAME.zip" \
+            main.js manifest.json styles.css \
             --title "$GITHUB_REF_NAME" \
             --generate-notes

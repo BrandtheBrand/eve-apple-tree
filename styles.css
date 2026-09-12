@@ -158,7 +158,7 @@
 .eve-tree-root .eve-stop{width:30px;height:26px;display:flex;align-items:center;justify-content:center;
   border-radius:8px;font-size:15px;line-height:1;cursor:pointer;user-select:none;opacity:.5;
   transition:opacity .18s ease,background .18s ease}
-.eve-tree-root .eve-stop-three{font-size:9px;letter-spacing:-2.5px;text-indent:-2.5px}
+.eve-tree-root .eve-stop-three{font-size:9px;letter-spacing:-2.5px;padding-right:2.5px}   /* text-indent is only partially supported on Obsidian 1.6.5 — padding balances the negative tracking instead */
 .eve-tree-root .eve-stop:hover{opacity:.9;background:rgba(122,147,166,.14)}
 .eve-tree-root .eve-stop.on{opacity:1;background:rgba(122,147,166,.20);box-shadow:inset 0 0 0 1px var(--eve-accent)}
 .eve-tree-root .eve-stop.off{opacity:.16;cursor:default;pointer-events:none}

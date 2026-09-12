@@ -255,7 +255,7 @@ export class EveTreeView extends ItemView {
   /** Still green water: faint in the middle, brighter where the pool meets the ground, nothing past the rim. */
   private poolTexture(): THREE.Texture {
     const key = "pool"; if (this.texCache[key]) return this.texCache[key];
-    const S = 256, c = this.containerEl.ownerDocument.createElement("canvas"); c.width = c.height = S;
+    const S = 256, c = createEl("canvas"); c.width = c.height = S;
     const x = c.getContext("2d")!; const g = x.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
     // white + alpha only (material.color tints it per theme). A defined rim gives the pool an EDGE —
     // a soft blob on cream or on black reads as a smudge at any distance.
@@ -274,7 +274,7 @@ export class EveTreeView extends ItemView {
       the trees get a standing silhouette for exactly this reason, and the pool needs its own. */
   private poolIconTexture(dark: boolean): THREE.Texture {
     const key = "poolicon" + (dark ? "d" : "l"); if (this.texCache[key]) return this.texCache[key];
-    const S = 256, c = this.containerEl.ownerDocument.createElement("canvas"); c.width = c.height = S;
+    const S = 256, c = createEl("canvas"); c.width = c.height = S;
     const x = c.getContext("2d")!;
     const brown = dark ? POOL_TINT.dark : POOL_TINT.light, green = ROLE.seed.tint, glow = ROLE.seed.glow!;
     // the basin first (matte brown), then the seeds on top (green, the only lit thing here)
@@ -293,7 +293,7 @@ export class EveTreeView extends ItemView {
 
   private dotTexture(tint: string, ring: string): THREE.Texture {
     const key = tint + ring; if (this.texCache[key]) return this.texCache[key];
-    const S = 160, c = this.containerEl.ownerDocument.createElement("canvas"); c.width = c.height = S;
+    const S = 160, c = createEl("canvas"); c.width = c.height = S;
     const x = c.getContext("2d")!; const cx = S / 2, cy = S / 2;
     const hg = x.createRadialGradient(cx, cy, 8, cx, cy, 78);
     hg.addColorStop(0, hexA(tint, 0.22)); hg.addColorStop(1, hexA(tint, 0));
@@ -307,7 +307,7 @@ export class EveTreeView extends ItemView {
      on the dark background makes it read like a little diamond twinkling. */
   private diamondTexture(tint: string): THREE.Texture {
     const key = "dia" + tint; if (this.texCache[key]) return this.texCache[key];
-    const S = 160, c = this.containerEl.ownerDocument.createElement("canvas"); c.width = c.height = S;
+    const S = 160, c = createEl("canvas"); c.width = c.height = S;
     const x = c.getContext("2d")!; const M = S / 2;
     let g = x.createRadialGradient(M, M, 1, M, M, 74);
     g.addColorStop(0, hexA(tint, 0.9)); g.addColorStop(0.30, hexA(tint, 0.42)); g.addColorStop(1, hexA(tint, 0));
@@ -326,7 +326,7 @@ export class EveTreeView extends ItemView {
      edge, banding, or a square. Additive on dark (glowing gems), normal on light (soft tint, no wash). */
   private haloTexture(): THREE.Texture {
     if (this.texCache["halo"]) return this.texCache["halo"];
-    const S = 128, c = this.containerEl.ownerDocument.createElement("canvas"); c.width = c.height = S;
+    const S = 128, c = createEl("canvas"); c.width = c.height = S;
     const x = c.getContext("2d")!, M = S / 2;
     const g = x.createRadialGradient(M, M, 0, M, M, M);
     g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.22, "rgba(255,255,255,0.62)");
@@ -349,7 +349,7 @@ export class EveTreeView extends ItemView {
   }
   private ringTexture(): THREE.Texture {
     if (this.texCache["ring"]) return this.texCache["ring"];
-    const S = 128, c = this.containerEl.ownerDocument.createElement("canvas"); c.width = c.height = S;
+    const S = 128, c = createEl("canvas"); c.width = c.height = S;
     const x = c.getContext("2d")!;
     x.lineWidth = 7; x.strokeStyle = "rgba(34,48,58,.9)"; x.beginPath(); x.arc(S / 2, S / 2, S / 2 - 8, 0, 7); x.stroke();
     x.lineWidth = 3; x.strokeStyle = "rgba(255,255,255,.9)"; x.beginPath(); x.arc(S / 2, S / 2, S / 2 - 8, 0, 7); x.stroke();
@@ -361,7 +361,7 @@ export class EveTreeView extends ItemView {
       scale stays correct; the 🌸/🍎 markers get per-shape anchors (SIL_MARK_ANCHOR). */
   private treeSilTexture(kind: ZoomIcon = "round"): THREE.Texture {
     const key = "sil-" + kind; if (this.texCache[key]) return this.texCache[key];
-    const S = 256, c = this.containerEl.ownerDocument.createElement("canvas"); c.width = c.height = S;
+    const S = 256, c = createEl("canvas"); c.width = c.height = S;
     const x = c.getContext("2d")!;
     const trunk = (topF: number, wF: number) => { x.fillStyle = hexA("#5b4632", 0.92); x.fillRect(S * (0.5 - wF / 2), S * topF, S * wF, S * (0.97 - topF)); };
     const lobe = (bxF: number, byF: number, brF: number) => {
@@ -414,7 +414,7 @@ export class EveTreeView extends ItemView {
   };
   private bridgeTexture(): THREE.Texture {
     if (this.texCache["bridge"]) return this.texCache["bridge"];
-    const S = 128, c = this.containerEl.ownerDocument.createElement("canvas"); c.width = c.height = S;
+    const S = 128, c = createEl("canvas"); c.width = c.height = S;
     const x = c.getContext("2d")!;
     const g = x.createRadialGradient(64, 64, 4, 64, 64, 60);
     g.addColorStop(0, hexA(BRIDGE_COL, 0.95)); g.addColorStop(0.55, hexA(BRIDGE_COL, 0.5)); g.addColorStop(1, hexA(BRIDGE_COL, 0));

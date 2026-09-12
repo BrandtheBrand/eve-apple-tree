@@ -4,6 +4,39 @@ Reverse-chronological. Each entry: what changed, why, and (for incidents) the ru
 
 ---
 
+## 2026-09-12 — Everything Obsidian's own reviewer found (v0.5.7)
+
+0.5.6 failed Obsidian's automated plugin review. Every finding is fixed here, and two of them are things
+this project's own lint had been reporting all along and I had waved through as cosmetic. They were not.
+
+**Error — the manifest description was 291 characters against a 250 limit.** A sentence about seeds was
+appended in 0.5.0 without checking a limit that is written down nowhere in the repo. It is 243 now, and a
+test asserts the limit so it cannot be crossed again unnoticed.
+
+**The release attached a file Obsidian will not download.** `eve-tree-team-<version>.zip` was built,
+attested and attached by the workflow; Obsidian fetches only `main.js`, `manifest.json` and `styles.css`
+and flags everything else. The zip is no longer built in CI — `scripts/build-team-zip.sh` makes it locally
+when it is wanted, and the package it holds is in the repo regardless. A test asserts the workflow attaches
+only the three.
+
+**Settings were invisible to Obsidian's settings search** on 1.13.0+, because the tab never implemented
+`getSettingDefinitions()`. It does now, with `getControlValue`/`setControlValue` writing through the same
+settings object `display()` uses, so the two paths cannot drift. `display()` stays for 1.7.2–1.12.
+
+**Eight `document.createElement` calls** became the global `createEl`. Not `Node.createEl` — that APPENDS
+to the node, and these are offscreen canvases used as texture sources that must never enter the DOM.
+
+**`text-indent`** is only partially supported on Obsidian 1.6.5; the two-pixel nudge it was doing is now
+`padding-right`.
+
+Passed unchanged: artifact attestations on both assets, no suspicious network patterns, no vulnerable
+dependencies, no obfuscation, and — the one worth keeping — **the build reproduced the release `main.js`
+byte-for-byte**, which is the same property verified locally in the third audit.
+
+Lint is down from 24 warnings to 11.
+
+---
+
 ## 2026-09-11 — Third audit: the crashes and blanks nobody had looked for (v0.5.6)
 
 The first two audits read documents. This one executed the code against deliberately hostile input, timed
